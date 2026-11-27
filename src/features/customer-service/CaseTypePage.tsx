@@ -1,12 +1,17 @@
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Eye } from "lucide-react"
+import { toast } from "sonner"
 import type { Column } from "@/components/shared/DataTable"
-import { ResourcePage, type FieldDef, type Option } from "@/components/shared/ResourcePage"
+import { FormDialog } from "@/components/shared/FormDialog"
+import { FormField, inputClass } from "@/components/shared/FormParts"
+import { ResourcePage, type FieldDef, type Option, type ResourceFormApi } from "@/components/shared/ResourcePage"
 import { StatusPill } from "@/components/shared/StatusPill"
 import { useAuth } from "@/features/auth/AuthContext"
+import { cardLabel, CARD_OPTIONS, hasCard } from "@/lib/cards"
 import { formatDate, peso, todayStr } from "@/lib/format"
 import { customerLookup, productLookup, saleLookup } from "@/lib/lookups"
 import { supabase } from "@/lib/supabase"
+import { cn } from "@/lib/utils"
 import {
   CASE_SELECT, KINDS, PENDING, RATINGS, SEVERITIES, SEVERITY_TONE, STATUS_TONE, TYPE_LABEL, TYPE_TONE,
   stars, statusLabel, type CaseKind, type CaseRow,
@@ -32,6 +37,20 @@ export default function CaseTypePage({ kind }: { kind: CaseKind | "all" }) {
   const [staff, setStaff] = useState<Option[]>([])
   const [openId, setOpenId] = useState<string | null>(null)
   const [tick, setTick] = useState(0)
+  const formApi = useRef<ResourceFormApi | null>(null)
+  const handleFormReady = useCallback((api: ResourceFormApi | null) => {
+    formApi.current = api
+  }, [])
+
+  // Quick-create customer: only customers who reach out to Customer Service get tracked.
+  const [quick, setQuick] = useState(false)
+  const [qName, setQName] = useState("")
+  const [qPhone, setQPhone] = useState("")
+  const [qEmail, setQEmail] = useState("")
+  const [qCard, setQCard] = useState("none")
+  const [qCardNo, setQCardNo] = useState("")
+  const [qError, setQError] = useState<string | null>(null)
+  const [qSaving, setQSaving] = useState(false)
 
   useEffect(() => {
     supabase.rpc("area_colleagues").then(({ data }) =>
@@ -44,6 +63,27 @@ export default function CaseTypePage({ kind }: { kind: CaseKind | "all" }) {
   const myEmployee = profile?.employee_id ?? null
   const fixedEq = useMemo(() => (cfg ? { case_type: cfg.kind } : undefined), [cfg])
   const fixedValues = useMemo(() => (cfg ? { case_type: cfg.kind } : undefined), [cfg])
+  // A refund is tied to a sale, so the customer of that sale fills the customer field.
+  const autoFill = useMemo(
+    () =>
+      kind === "refund"
+        ? [
+            {
+              target: "customer_id",
+              when: "sales_transaction_id",
+              resolve: async (saleId: string) => {
+                const { data } = await supabase
+                  .from("sales_transactions")
+                  .select("customer_id")
+                  .eq("id", saleId)
+                  .maybeSingle()
+                return ((data as { customer_id: string | null } | null)?.customer_id) ?? null
+              },
+            },
+          ]
+        : undefined,
+    [kind],
+  )
   const isOverdue = (r: CaseRow) => !!r.due_date && r.due_date < todayStr() && PENDING.includes(r.status)
 
   // ----- list columns -----
@@ -53,7 +93,20 @@ export default function CaseTypePage({ kind }: { kind: CaseKind | "all" }) {
   ]
   if (!cfg) columns.push({ header: "Type", cell: (r) => <StatusPill label={TYPE_LABEL[r.case_type] ?? r.case_type} tone={TYPE_TONE[r.case_type as keyof typeof TYPE_TONE] ?? "gray"} /> })
   columns.push({ header: "Subject", cell: (r) => <span className="line-clamp-1 max-w-[16rem]">{r.subject}</span> })
-  columns.push({ header: "Customer", cell: (r) => r.customer?.full_name ?? "—" })
+  columns.push({
+    header: "Customer",
+    cell: (r) =>
+      r.customer ? (
+        <span className="inline-flex items-center gap-1.5">
+          <span className="truncate">{r.customer.full_name}</span>
+          {hasCard(r.customer.card_type) && (
+            <StatusPill label={`${cardLabel(r.customer.card_type)} · priority`} tone="amber" />
+          )}
+        </span>
+      ) : (
+        <span className="text-muted-foreground">—</span>
+      ),
+  })
   if (kind === "complaint" || kind === "inquiry" || kind === "feedback") {
     columns.push({ header: "Product", cell: (r) => r.product_name ?? "—" })
   }
@@ -92,8 +145,19 @@ export default function CaseTypePage({ kind }: { kind: CaseKind | "all" }) {
       fields.push({ name: "sales_transaction_id", label: "Sale being refunded", type: "search", lookup: saleLookup, required: true, placeholder: "Search by transaction no., product or customer", fullWidth: true })
       fields.push({ name: "refund_amount", label: "Refund amount (PHP)", type: "number", required: true, min: 0.01 })
     }
-    fields.push({ name: "customer_id", label: kind === "refund" ? "Customer (filled from the sale if left empty)" : "Customer", type: "search", lookup: customerLookup, placeholder: "Search customer name or number" })
-    if (kind !== "refund") fields.push({ name: "product_id", label: "Product", type: "search", lookup: productLookup, placeholder: "Search product name or SKU" })
+    // Every customer-service case must have a customer - even a complaint that is not about a product.
+    fields.push({
+      name: "customer_id",
+      label: kind === "refund" ? "Customer (auto-filled from the sale)" : "Customer",
+      type: "search", lookup: customerLookup, placeholder: "Search customer name or number",
+      required: true,
+      action: { label: "New customer", onClick: () => openQuickCustomer() },
+    })
+    if (kind !== "refund") fields.push({
+      name: "product_id",
+      label: kind === "complaint" ? "Product (only if the complaint is about a product)" : "Product",
+      type: "search", lookup: productLookup, placeholder: "Search product name or SKU",
+    })
     if (kind === "complaint") {
       fields.push({ name: "sales_transaction_id", label: "Related sale (optional)", type: "search", lookup: saleLookup, placeholder: "Search by transaction no., product or customer", fullWidth: true })
       fields.push({ name: "severity", label: "Severity", type: "select", options: SEVERITIES, required: true, defaultValue: "medium" })
@@ -120,6 +184,46 @@ export default function CaseTypePage({ kind }: { kind: CaseKind | "all" }) {
     return mine
   }
 
+  // ----- quick-create customer (only CS-contacted customers are tracked) -----
+  function openQuickCustomer() {
+    setQName("")
+    setQPhone("")
+    setQEmail("")
+    setQCard("none")
+    setQCardNo("")
+    setQError(null)
+    setQuick(true)
+  }
+
+  async function saveQuickCustomer() {
+    const name = qName.trim()
+    if (!name) {
+      setQError("Full name is required.")
+      return
+    }
+    setQSaving(true)
+    setQError(null)
+    const { data, error } = await supabase
+      .from("customers")
+      .insert({
+        full_name: name,
+        phone: qPhone.trim() || null,
+        email: qEmail.trim() || null,
+        card_type: qCard,
+        card_no: qCard === "none" ? null : qCardNo.trim() || null,
+      })
+      .select("id")
+      .single()
+    setQSaving(false)
+    if (error || !data) {
+      setQError("The customer could not be created. You can also add customers from Sales > Customers.")
+      return
+    }
+    setQuick(false)
+    formApi.current?.setField("customer_id", String(data.id))
+    toast.success(`${name} added as a customer.`)
+  }
+
   const filters = [
     cfg ? { name: "status", label: "Status", options: cfg.statuses } : { name: "status", label: "Status", options: ALL_STATUSES },
     ...(cfg ? [] : [{ name: "case_type", label: "Type", options: ALL_TYPES }]),
@@ -143,8 +247,49 @@ export default function CaseTypePage({ kind }: { kind: CaseKind | "all" }) {
         canEditRow={canEditRow}
         filters={filters}
         emptyText="No cases yet."
+        autoFill={autoFill}
+        onFormReady={handleFormReady}
       />
       {openId && <CaseDrawer caseId={openId} onClose={() => setOpenId(null)} onChanged={() => setTick((t) => t + 1)} />}
+
+      <FormDialog
+        open={quick}
+        title="New customer"
+        onClose={() => setQuick(false)}
+        onSubmit={saveQuickCustomer}
+        submitting={qSaving}
+        error={qError}
+        submitLabel="Add customer"
+      >
+        <p className="text-xs text-muted-foreground">
+          Only customers who reach out to Customer Service need to be tracked. Add their card if they have one - cardholders get priority handling.
+        </p>
+        <div className="grid gap-4 sm:grid-cols-2">
+          <FormField label="Full name" required className="sm:col-span-2">
+            <input className={inputClass} value={qName} placeholder="Customer name"
+              onChange={(e) => setQName(e.target.value)} />
+          </FormField>
+          <FormField label="Phone">
+            <input className={inputClass} value={qPhone} placeholder="Mobile number"
+              onChange={(e) => setQPhone(e.target.value)} />
+          </FormField>
+          <FormField label="Email">
+            <input type="email" className={inputClass} value={qEmail} placeholder="name@example.com"
+              onChange={(e) => setQEmail(e.target.value)} />
+          </FormField>
+          <FormField label="Card">
+            <select className={cn(inputClass, "w-auto")} value={qCard} onChange={(e) => setQCard(e.target.value)}>
+              {CARD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </select>
+          </FormField>
+          {qCard !== "none" && (
+            <FormField label="Card number">
+              <input className={inputClass} value={qCardNo} placeholder="Card number"
+                onChange={(e) => setQCardNo(e.target.value)} />
+            </FormField>
+          )}
+        </div>
+      </FormDialog>
     </>
   )
 }

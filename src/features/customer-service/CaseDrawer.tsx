@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { useAuth } from "@/features/auth/AuthContext"
 import { inputClass } from "@/components/shared/FormParts"
+import { cardLabel, hasCard } from "@/lib/cards"
 import { formatDate, num, peso } from "@/lib/format"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
@@ -47,6 +48,7 @@ export default function CaseDrawer({ caseId, onClose, onChanged }: { caseId: str
   const [row, setRow] = useState<CaseRow | null>(null)
   const [events, setEvents] = useState<EventRow[]>([])
   const [customer, setCustomer] = useState<CustomerSnap | null>(null)
+  const [card, setCard] = useState<{ card_type: string; card_no: string | null } | null>(null)
   const [product, setProduct] = useState<ProductSnap | null>(null)
   const [staff, setStaff] = useState<Record<string, string>>({})
   const [error, setError] = useState<string | null>(null)
@@ -67,8 +69,14 @@ export default function CaseDrawer({ caseId, onClose, onChanged }: { caseId: str
     const r = c.data as unknown as CaseRow
     setRow(r)
     setEvents((ev.data ?? []) as EventRow[])
-    if (r.customer_id) supabase.rpc("cs_customer_snapshot", { p_customer: r.customer_id }).then(({ data }) => setCustomer((data ?? null) as CustomerSnap | null))
-    else setCustomer(null)
+    if (r.customer_id) {
+      supabase.rpc("cs_customer_snapshot", { p_customer: r.customer_id }).then(({ data }) => setCustomer((data ?? null) as CustomerSnap | null))
+      supabase.from("customers").select("card_type, card_no").eq("id", r.customer_id).maybeSingle()
+        .then(({ data }) => setCard((data ?? null) as { card_type: string; card_no: string | null } | null))
+    } else {
+      setCustomer(null)
+      setCard(null)
+    }
     if (r.product_id) supabase.rpc("cs_product_snapshot", { p_product: r.product_id }).then(({ data }) => setProduct((data ?? null) as ProductSnap | null))
     else setProduct(null)
   }, [caseId])
@@ -148,7 +156,14 @@ export default function CaseDrawer({ caseId, onClose, onChanged }: { caseId: str
 
               <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
                 <Field label="Submitted">{formatDate(row.date_submitted)}</Field>
-                <Field label="Customer">{row.customer?.full_name}</Field>
+                <Field label="Customer">
+                  <span className="inline-flex flex-wrap items-center gap-1.5">
+                    {row.customer?.full_name}
+                    {card && hasCard(card.card_type) && (
+                      <StatusPill label={`${cardLabel(card.card_type)} · priority`} tone="amber" />
+                    )}
+                  </span>
+                </Field>
                 <Field label="Assigned to">{row.assigned_to ? (staff[row.assigned_to] ?? "Employee") : <span className="text-muted-foreground">Unassigned</span>}</Field>
                 {row.product_name && <Field label="Product">{row.product_name}</Field>}
                 {row.sale_no && <Field label="Sale">{row.sale_no}</Field>}
@@ -217,6 +232,11 @@ export default function CaseDrawer({ caseId, onClose, onChanged }: { caseId: str
                 <Panel title="Customer history">
                   <p className="text-sm font-medium">{customer.name} <span className="font-normal text-muted-foreground">({customer.customer_no})</span></p>
                   <p className="text-xs text-muted-foreground">{[customer.phone, customer.email].filter(Boolean).join(" · ") || "No contact details"}</p>
+                  {card && hasCard(card.card_type) && (
+                    <p className="mt-1 text-xs font-medium text-brand-text">
+                      ★ {cardLabel(card.card_type)}{card.card_no ? ` · ${card.card_no}` : ""} - priority customer
+                    </p>
+                  )}
                   <div className="mt-3 grid grid-cols-3 gap-2 text-center">
                     <div><p className="text-lg font-medium">{num(customer.purchases)}</p><p className="text-xs text-muted-foreground">Purchases</p></div>
                     <div><p className="text-lg font-medium">{peso(customer.spent)}</p><p className="text-xs text-muted-foreground">Spent</p></div>
