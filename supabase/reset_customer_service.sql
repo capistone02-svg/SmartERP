@@ -14,8 +14,15 @@
 -- Nothing outside the Customer Service module is deleted. case_no,
 -- customer_no and transaction_no are left to the database defaults,
 -- exactly like the app does.
+--
+-- The script runs in TWO transactions on purpose: the card columns are
+-- committed first, so even if the wipe/seed part fails, the app keeps
+-- working (it always reads those columns).
 -- ============================================================================
 
+-- ============================================================================
+-- TRANSACTION 1: schema the updated app needs (committed first, on its own)
+-- ============================================================================
 begin;
 
 -- ----------------------------------------------------------------------------
@@ -42,6 +49,13 @@ begin
       check (card_type in ('none', 'loyalty', 'membership'));
   end if;
 end $$;
+
+commit;
+
+-- ============================================================================
+-- TRANSACTION 2: reset + small seed (all-or-nothing)
+-- ============================================================================
+begin;
 
 -- ----------------------------------------------------------------------------
 -- 2) Every customer-service case must have a customer
@@ -229,5 +243,13 @@ left join lateral (
 ) sale on v.case_type = 'refund';
 
 commit;
+
+-- If this returns rows, everything applied. The app should now work.
+select
+  (select count(*) from public.service_cases)                 as cases_seeded,
+  (select count(*) from public.service_cases
+     where customer_id is null)                                as cases_without_customer,
+  (select count(*) from public.customers
+     where card_type <> 'none')                                as priority_customers;
 
 -- Done: 6 customers (3 priority), 15 cases. Re-run any time to start over.
