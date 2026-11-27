@@ -218,7 +218,7 @@ export function ResourcePage<T>(p: ResourcePageProps<T>) {
     }
     const wasRejected =
       dialog.mode === "edit" && (dialog.row as { approval_status?: string }).approval_status === "rejected"
-    if (p.approval && profile.role === "staff") {
+    if (p.approval && profile?.role === "staff") {
       toast.success(wasRejected ? `${p.singular} resubmitted for approval.` : editing ? `${p.singular} updated.` : `${p.singular} submitted for approval.`)
       window.dispatchEvent(new Event(APPROVALS_CHANGED))
     } else {
