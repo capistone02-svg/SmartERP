@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 import { Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
@@ -32,6 +32,7 @@ export interface FieldDef {
   readOnlyOnEdit?: boolean
   fullWidth?: boolean
   visibleWhen?: (values: Record<string, string>) => boolean
+  action?: { label: string; onClick: () => void } // small link under the input (e.g. "+ New customer")
 }
 export interface FilterDef {
   name: string
@@ -62,6 +63,15 @@ export interface ResourcePageProps<T> {
   fixedEq?: Record<string, string> // always filter the list by these values (keep it a constant or useMemo)
   fixedValues?: Record<string, unknown> // always saved with new records (e.g. the case type)
   refreshSignal?: number // change this number to reload the list from outside
+  // Fill one field from another once its source is chosen (e.g. the customer of the sale being refunded).
+  autoFill?: Array<{ target: string; when: string; resolve: (value: string) => Promise<string | null> }>
+  // Called while the form dialog is open with a setField function, and with
+  // null when it closes - lets the caller fill a field (e.g. after a quick-create).
+  onFormReady?: (api: ResourceFormApi | null) => void
+}
+
+export interface ResourceFormApi {
+  setField: (name: string, value: string) => void
 }
 
 function validate(fields: FieldDef[], values: Record<string, string>, editing: boolean): string | null {
@@ -164,6 +174,46 @@ export function ResourcePage<T>(p: ResourcePageProps<T>) {
   const [deleting, setDeleting] = useState(false)
   const pageSize = rowsPerPage()
   const fields = p.fields ?? []
+
+  // Fill a field from another one (e.g. customer from the sale being refunded)
+  const autoFill = p.autoFill
+  useEffect(() => {
+    if (!dialog || !autoFill || autoFill.length === 0) return
+    let stopped = false
+    void (async () => {
+      for (const rule of autoFill) {
+        const source = (values[rule.when] ?? "").trim()
+        if (!source || (values[rule.target] ?? "").trim()) continue
+        let filled: string | null = null
+        try {
+          filled = await rule.resolve(source)
+        } catch {
+          filled = null
+        }
+        if (stopped || !filled) continue
+        setValues((current) =>
+          (current[rule.target] ?? "").trim() ? current : { ...current, [rule.target]: filled as string },
+        )
+      }
+    })()
+    return () => {
+      stopped = true
+    }
+  }, [values, dialog, autoFill])
+
+  // Expose setField to the caller while the dialog is open (e.g. quick-create customer)
+  const onFormReady = p.onFormReady
+  useEffect(() => {
+    if (!onFormReady) return
+    if (!dialog) {
+      onFormReady(null)
+      return
+    }
+    onFormReady({ setField: (name, value) => setValues((current) => ({ ...current, [name]: value })) })
+    return () => {
+      onFormReady(null)
+    }
+  }, [dialog, onFormReady])
 
   const eq = useMemo(() => ({ ...filterValues, ...(p.fixedEq ?? {}) }), [filterValues, p.fixedEq])
   const { rows, total, loading, error } = usePagedQuery<T>({
@@ -329,6 +379,15 @@ export function ResourcePage<T>(p: ResourcePageProps<T>) {
                   disabled={editing && !!f.readOnlyOnEdit}
                   onChange={(v) => setValues((cur) => ({ ...cur, [f.name]: v }))}
                 />
+                {f.action && (
+                  <button
+                    type="button"
+                    onClick={f.action.onClick}
+                    className="mt-1 text-xs font-medium text-brand-text hover:underline"
+                  >
+                    + {f.action.label}
+                  </button>
+                )}
               </FormField>
             ))}
         </div>

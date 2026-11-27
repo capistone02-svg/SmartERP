@@ -20,7 +20,7 @@ export interface KindConfig {
 export const KINDS: Record<CaseKind, KindConfig> = {
   complaint: {
     kind: "complaint", path: "complaints", label: "Complaint", plural: "Complaints",
-    blurb: "Problems with a product or service. Each has a severity and a due date.",
+    blurb: "Problems with a service or product. Link a product only when the complaint is about one - every complaint must have a customer.",
     statuses: [
       { value: "open", label: "Received" },
       { value: "in_progress", label: "Investigating" },
@@ -31,7 +31,7 @@ export const KINDS: Record<CaseKind, KindConfig> = {
   },
   refund: {
     kind: "refund", path: "refunds", label: "Refund / Return", plural: "Refunds and Returns",
-    blurb: "Linked to the sale being refunded. The Department Head approves or denies.",
+    blurb: "Linked to the sale being refunded; the customer is filled in from that sale. The Department Head approves or denies.",
     statuses: [
       { value: "open", label: "Requested" },
       { value: "for_review", label: "Head review" },
@@ -43,7 +43,7 @@ export const KINDS: Record<CaseKind, KindConfig> = {
   },
   inquiry: {
     kind: "inquiry", path: "inquiries", label: "Product inquiry", plural: "Product Inquiries",
-    blurb: "Questions about a product, its availability or promotions.",
+    blurb: "Questions from a customer about a product, its availability or promotions. Every inquiry must have a customer.",
     statuses: [
       { value: "open", label: "Open" },
       { value: "resolved", label: "Answered" },
@@ -53,7 +53,7 @@ export const KINDS: Record<CaseKind, KindConfig> = {
   },
   feedback: {
     kind: "feedback", path: "feedback", label: "Feedback", plural: "Feedback",
-    blurb: "Ratings, compliments and suggestions. Ratings feed the satisfaction score.",
+    blurb: "Ratings, compliments and suggestions from a customer. Ratings feed the satisfaction score.",
     statuses: [
       { value: "open", label: "Received" },
       { value: "resolved", label: "Reviewed" },
@@ -122,8 +122,8 @@ export interface CaseRow {
   due_date: string | null
   refund_amount: number | null
   rating: number | null
-  customer: { full_name: string } | null
+  customer: { full_name: string; card_type: string | null } | null
 }
 
 export const CASE_SELECT =
-  "id, case_no, case_type, customer_id, subject, description, date_submitted, status, assigned_to, resolution_details, resolution_date, created_by, product_id, product_name, sales_transaction_id, sale_no, severity, due_date, refund_amount, rating, customer:customers(full_name)"
+  "id, case_no, case_type, customer_id, subject, description, date_submitted, status, assigned_to, resolution_details, resolution_date, created_by, product_id, product_name, sales_transaction_id, sale_no, severity, due_date, refund_amount, rating, customer:customers(full_name, card_type)"
