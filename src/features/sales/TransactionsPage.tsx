@@ -2,7 +2,7 @@ import { useEffect, useState } from "react"
 import type { Column } from "@/components/shared/DataTable"
 import { ResourcePage, type FieldDef, type Option } from "@/components/shared/ResourcePage"
 import { StatusPill } from "@/components/shared/StatusPill"
-import { ApprovalBadge, type ApprovalStatus } from "@/features/approvals/ApprovalBadge"
+import type { ApprovalStatus } from "@/features/approvals/ApprovalBadge"
 import { SalesImport } from "@/features/sales/SalesImport"
 import { formatDate, num, peso, todayStr } from "@/lib/format"
 import { supabase } from "@/lib/supabase"
@@ -39,10 +39,38 @@ export default function TransactionsPage() {
     { header: "Transaction", cell: (r) => <span className="font-medium">{r.transaction_no}</span> },
     { header: "Date", cell: (r) => formatDate(r.transaction_date) },
     { header: "Product", cell: (r) => r.product?.name ?? "—" },
-    { header: "Customer", cell: (r) => r.customer?.full_name ?? "—" },
+    {
+      header: "Customer",
+      cell: (r) =>
+        r.customer?.full_name ? (
+          <span className="font-medium">{r.customer.full_name}</span>
+        ) : (
+          <span className="text-xs text-muted-foreground italic">Walk-in</span>
+        ),
+    },
     { header: "Qty", cell: (r) => num(r.quantity), className: "text-right" },
     { header: "Amount", cell: (r) => peso(r.amount), className: "text-right" },
-    { header: "Status", cell: (r) => <ApprovalBadge status={r.approval_status} note={r.review_note} /> },
+    {
+      header: "Status",
+      cell: (r) => (
+        <StatusPill
+          label={
+            r.approval_status === "approved"
+              ? "Completed"
+              : r.approval_status === "rejected"
+              ? "Cancelled"
+              : "Pending"
+          }
+          tone={
+            r.approval_status === "approved"
+              ? "green"
+              : r.approval_status === "rejected"
+              ? "red"
+              : "amber"
+          }
+        />
+      ),
+    },
     {
       header: "Refund",
       cell: (r) => (r.refund_state === "none" ? (
@@ -57,11 +85,18 @@ export default function TransactionsPage() {
   ]
   const fields: FieldDef[] = [
     { name: "product_id", label: "Product", type: "select", options: products, required: true, fullWidth: true },
-    { name: "customer_id", label: "Customer", type: "select", options: customers, placeholder: "No customer", fullWidth: true },
+    {
+      name: "customer_id",
+      label: "Customer (Optional - Loyalty / SMAC Member)",
+      type: "select",
+      options: customers,
+      placeholder: "Walk-in Customer (No membership card)",
+      fullWidth: true,
+    },
     { name: "transaction_date", label: "Transaction date", type: "date", required: true, defaultValue: todayStr() },
     { name: "quantity", label: "Quantity", type: "integer", min: 1, required: true, defaultValue: "1" },
     { name: "amount", label: "Recorded amount (PHP)", type: "number", min: 0, required: true },
-    { name: "notes", label: "Notes", type: "textarea" },
+    { name: "notes", label: "Notes / Cashier receipt details", type: "textarea" },
   ]
 
   return (
@@ -69,11 +104,11 @@ export default function TransactionsPage() {
       resource="sales_transactions" table="sales_transactions" singular="Sale"
       select="id, transaction_no, transaction_date, product_id, customer_id, quantity, amount, notes, created_by, approval_status, review_note, refund_state, refunded_amount, product:products(name, sku), customer:customers(full_name)"
       searchColumns={["transaction_no", "notes"]} searchPlaceholder="Search transaction no. or notes..."
-      orderBy="transaction_date" ascending={false} columns={columns} fields={fields} rowKey={(r) => r.id} approval
-      canEditRow={(r, me, role) => role !== "staff" || (r.created_by === me && r.approval_status !== "approved")}
+      orderBy="transaction_date" ascending={false} columns={columns} fields={fields} rowKey={(r) => r.id}
+      canEditRow={(r, me, role) => role !== "staff" || r.created_by === me}
       filters={[{
         name: "approval_status", label: "Status",
-        options: [{ value: "pending", label: "Pending approval" }, { value: "approved", label: "Approved" }, { value: "rejected", label: "Rejected" }],
+        options: [{ value: "approved", label: "Completed" }, { value: "pending", label: "Pending" }, { value: "rejected", label: "Cancelled" }],
       }]}
       toolbarExtra={(refresh) => <SalesImport onDone={refresh} />}
     />

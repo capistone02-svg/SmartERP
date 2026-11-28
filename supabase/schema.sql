@@ -323,16 +323,19 @@ alter table public.inventory_movements
   on delete set null;
 
 create table if not exists public.promotions (
-  id          uuid primary key default gen_random_uuid(),
-  name        text not null,
-  description text,
-  start_date  date not null default current_date,
-  end_date    date not null default current_date,
-  status      text not null default 'planned'
-              check (status in ('planned','active','ended','cancelled')),
-  created_by  uuid references public.profiles (id),
-  created_at  timestamptz not null default now(),
-  deleted_at  timestamptz
+  id               uuid primary key default gen_random_uuid(),
+  name             text not null,
+  description      text,
+  product_id       uuid references public.products (id) on delete set null,
+  discount_percent numeric default 0 check (discount_percent >= 0 and discount_percent <= 100),
+  promo_price      numeric,
+  start_date       date not null default current_date,
+  end_date         date not null default current_date,
+  status           text not null default 'planned'
+                   check (status in ('planned','active','ended','cancelled')),
+  created_by       uuid references public.profiles (id),
+  created_at       timestamptz not null default now(),
+  deleted_at       timestamptz
 );
 
 create table if not exists public.marketing_activities (
@@ -485,23 +488,51 @@ create or replace trigger trg_service_cases_created_by before insert on public.s
   for each row execute function public.fn_set_created_by();
 
 -- Staff submissions wait for approval; Department Head / Admin records are
--- approved straight away. Explicit values (seeds) are respected.
+-- approved straight away. Cashier retail sales are completed upon transaction.
+-- Explicit values (seeds/imports) are respected.
 create or replace function public.fn_set_approval_status() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
   v_role text;
 begin
   if NEW.approval_status is null then
-    select role into v_role from public.profiles where id = auth.uid();
-    if v_role in ('department_head', 'admin') then
+    if TG_TABLE_NAME = 'sales_transactions' then
+      -- Retail POS cashier sales are completed transactions upon occurrence
       NEW.approval_status := 'approved';
     else
-      NEW.approval_status := 'pending';
+      select role into v_role from public.profiles where id = auth.uid();
+      if v_role in ('department_head', 'admin') then
+        NEW.approval_status := 'approved';
+      else
+        NEW.approval_status := 'pending';
+      end if;
     end if;
   end if;
   return NEW;
 end;
 $$;
+
+create or replace function public.fn_compute_promo_price() returns trigger
+language plpgsql as $$
+declare
+  v_price numeric;
+begin
+  if NEW.product_id is not null then
+    select unit_price into v_price from public.products where id = NEW.product_id;
+    if v_price is not null and NEW.discount_percent is not null then
+      NEW.promo_price := round(v_price * (1.0 - (NEW.discount_percent / 100.0)), 2);
+    end if;
+  else
+    NEW.promo_price := null;
+  end if;
+  return NEW;
+end;
+$$;
+
+drop trigger if exists trg_compute_promo_price on public.promotions;
+create trigger trg_compute_promo_price
+before insert or update of product_id, discount_percent on public.promotions
+for each row execute function public.fn_compute_promo_price();
 
 create or replace trigger trg_financial_entries_approval before insert on public.financial_entries
   for each row execute function public.fn_set_approval_status();
