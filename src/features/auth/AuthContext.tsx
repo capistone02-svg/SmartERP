@@ -118,11 +118,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       /* ignore */
     }
+    const email = employeeIdToEmail(employeeId)
     const { error } = await supabase.auth.signInWithPassword({
-      email: employeeIdToEmail(employeeId),
+      email,
       password,
     })
-    if (error) return "Invalid Employee ID or password."
+    if (error) {
+      console.error("Sign-in failed for", email, ":", error)
+      return error.message || "Invalid Employee ID or password."
+    }
     return null // profile loading and the active-account check happen in the effect above
   }, [])
 

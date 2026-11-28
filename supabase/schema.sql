@@ -1009,20 +1009,22 @@ declare
   v_email text;
   v_emp   text;
 begin
-  select email into v_email from auth.users where id = NEW.user_id;
-  v_emp := split_part(coalesce(v_email, ''), '@', 1);
-  if v_emp is null or v_emp = '' then
-    return NEW;
-  end if;
-  -- Ignore session refreshes that happen within five minutes of a sign-in.
-  if exists (
-    select 1 from public.login_logs
-    where event = 'login' and employee_no = v_emp
-      and occurred_at > now() - interval '5 minutes'
-  ) then
-    return NEW;
-  end if;
-  insert into public.login_logs (event, employee_no) values ('login', v_emp);
+  begin
+    select email into v_email from auth.users where id = NEW.user_id;
+    v_emp := split_part(coalesce(v_email, ''), '@', 1);
+    if v_emp is not null and v_emp <> '' then
+      if not exists (
+        select 1 from public.login_logs
+        where event = 'login' and employee_no = v_emp
+          and occurred_at > now() - interval '5 minutes'
+      ) then
+        insert into public.login_logs (event, employee_no) values ('login', v_emp);
+      end if;
+    end if;
+  exception when others then
+    -- Never fail session creation even if logging encounters an issue
+    null;
+  end;
   return NEW;
 end;
 $$;
