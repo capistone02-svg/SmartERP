@@ -1,4 +1,6 @@
+import type { FilterDef, SortDef } from "@/components/shared/ResourcePage"
 import type { Option } from "@/components/shared/SearchSelect"
+import { customerLookup } from "@/lib/lookups"
 
 export type CaseKind = "complaint" | "refund" | "inquiry" | "feedback"
 
@@ -99,6 +101,68 @@ export const RATINGS: Option[] = [
   { value: "1", label: "1 - Very poor" },
 ]
 export const stars = (n: number | null) => (n ? "★".repeat(n) + "☆".repeat(5 - n) : "—")
+
+// ----- list filters and sorting (each tab gets its own set) -----
+const PRIORITY_FILTER: FilterDef = {
+  name: "priority", label: "Priority", column: "customer.card_type",
+  options: [
+    { value: "priority", label: "Priority (any card)" },
+    { value: "membership", label: "Membership card" },
+    { value: "loyalty", label: "Loyalty card" },
+    { value: "none", label: "Regular (no card)" },
+  ],
+  values: { priority: ["membership", "loyalty"], membership: ["membership"], loyalty: ["loyalty"], none: ["none"] },
+  // "!inner" makes the card condition remove cases, not just blank the customer
+  join: { from: "customer:customers(", to: "customer:customers!inner(" },
+}
+
+export function caseFilters(kind: CaseKind | "all", staff: Option[]): FilterDef[] {
+  const cfg = kind === "all" ? null : KINDS[kind]
+  const list: FilterDef[] = []
+  if (!cfg) list.push({ name: "case_type", label: "Type", options: Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label })) })
+  list.push({ name: "status", label: "Status", options: cfg ? cfg.statuses : ALL_STATUSES })
+  if (kind === "complaint") {
+    list.push({ name: "severity", label: "Severity", options: [
+      { value: "high", label: "High" }, { value: "medium", label: "Medium" }, { value: "low", label: "Low" },
+    ] })
+  }
+  if (kind === "feedback") list.push({ name: "rating", label: "Rating", options: RATINGS })
+  list.push(PRIORITY_FILTER)
+  list.push({ name: "customer_id", label: "Customer", type: "search", lookup: customerLookup })
+  if (staff.length > 0) list.push({ name: "assigned_to", label: "Assigned to", options: staff })
+  list.push({ name: "date_from", label: "From", type: "date", column: "date_submitted", op: "gte" })
+  list.push({ name: "date_to", label: "To", type: "date", column: "date_submitted", op: "lte" })
+  return list
+}
+
+export function caseSorts(kind: CaseKind | "all"): SortDef[] {
+  const list: SortDef[] = [
+    { value: "newest", label: "Newest first", column: "date_submitted", ascending: false },
+    { value: "oldest", label: "Oldest first", column: "date_submitted", ascending: true },
+    { value: "name_az", label: "Customer A to Z", column: "customer(full_name)", ascending: true },
+    { value: "name_za", label: "Customer Z to A", column: "customer(full_name)", ascending: false },
+  ]
+  if (kind === "complaint") list.push({ value: "due", label: "Due date (soonest)", column: "due_date", ascending: true })
+  if (kind === "refund") list.push(
+    { value: "amount_high", label: "Amount (highest)", column: "refund_amount", ascending: false },
+    { value: "amount_low", label: "Amount (lowest)", column: "refund_amount", ascending: true },
+  )
+  if (kind === "feedback") list.push(
+    { value: "rating_high", label: "Rating (highest)", column: "rating", ascending: false },
+    { value: "rating_low", label: "Rating (lowest)", column: "rating", ascending: true },
+  )
+  return list
+}
+
+const ALL_STATUSES: Option[] = [
+  { value: "open", label: "Open / Received / Requested" },
+  { value: "in_progress", label: "In progress / Investigating" },
+  { value: "for_review", label: "Head review" },
+  { value: "approved", label: "Approved" },
+  { value: "denied", label: "Denied" },
+  { value: "resolved", label: "Resolved / Answered / Completed" },
+  { value: "closed", label: "Closed" },
+]
 
 // The "Case" row used by the list pages and the details window
 export interface CaseRow {
