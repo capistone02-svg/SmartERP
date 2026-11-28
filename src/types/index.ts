@@ -7,7 +7,7 @@ export type FunctionalArea =
   | "sales_marketing"
   | "customer_service"
 
-export type Action = "view" | "create" | "update" | "delete"
+export type Action = "view" | "create" | "update" | "delete" | "import" | "export"
 
 export interface Profile {
   id: string
@@ -28,6 +28,8 @@ export interface Permission {
   can_create: boolean
   can_update: boolean
   can_delete: boolean
+  can_import: boolean
+  can_export: boolean
 }
 
 export const ROLE_LABEL: Record<AppRole, string> = {

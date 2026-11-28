@@ -3,7 +3,7 @@ import { toast } from "sonner"
 import { DataTable, type Column } from "@/components/shared/DataTable"
 import { ROLE_LABEL, type AppRole } from "@/types"
 import { downloadCsv } from "@/lib/csv"
-import { fetchAllLogs, fmtWhen, LogToolbar, useLogRows, type LogQuery } from "./logTools"
+import { fetchAllLogs, fmtWhen, LogToolbar, presetRange, useLogRows, type LogQuery } from "./logTools"
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 interface Row {
@@ -33,6 +33,11 @@ const MODULES: Record<string, string> = {
   marketing_activities: "Marketing activities",
   financial_entries: "Financial entries",
   service_cases: "Service cases",
+  employee_personal: "Employee personal details",
+  employee_documents: "Employee documents",
+  case_events: "Case timeline",
+  audit_logs: "Activity log",
+  login_logs: "Login log",
 }
 const ACTIONS: Record<string, string> = {
   create: "Created",
@@ -43,6 +48,8 @@ const ACTIONS: Record<string, string> = {
   resubmit: "Resubmitted",
   account_created: "Account created",
   password_reset: "Password reset",
+  log_exported: "Log exported",
+  log_removed: "Log year removed",
 }
 const ACTION_STYLE: Record<string, string> = {
   create: "bg-green-100 text-green-700",
@@ -53,6 +60,8 @@ const ACTION_STYLE: Record<string, string> = {
   resubmit: "bg-amber-100 text-amber-700",
   account_created: "bg-green-100 text-green-700",
   password_reset: "bg-amber-100 text-amber-700",
+  log_exported: "bg-blue-100 text-blue-700",
+  log_removed: "bg-red-100 text-red-700",
 }
 
 const pretty = (k: string) => k.replace(/_/g, " ")
@@ -68,15 +77,15 @@ function summary(r: Row): string {
 
 function Details({ row }: { row: Row }) {
   const entries = Object.entries(row.changes ?? {})
-  if (entries.length === 0 && !row.details) return <span className="text-neutral-400">—</span>
+  if (entries.length === 0 && !row.details) return <span className="text-muted-foreground">—</span>
   return (
     <details className="text-xs">
-      <summary className="cursor-pointer text-[#0e63a6]">View</summary>
-      <ul className="mt-1 space-y-0.5 text-neutral-600">
+      <summary className="cursor-pointer text-brand-text">View</summary>
+      <ul className="mt-1 space-y-0.5 text-muted-foreground">
         {entries.map(([k, v]) => (
           <li key={k}>
             <span className="font-medium capitalize">{pretty(k)}:</span>{" "}
-            {isDiff(v) ? <>{val(v.from)} <span className="text-neutral-400">to</span> {val(v.to)}</> : val(v)}
+            {isDiff(v) ? <>{val(v.from)} <span className="text-muted-foreground">to</span> {val(v.to)}</> : val(v)}
           </li>
         ))}
         {row.details && <li>{row.details}</li>}
@@ -89,8 +98,8 @@ export default function ActivityLogPage() {
   const [text, setText] = useState("")
   const [module, setModule] = useState("")
   const [action, setAction] = useState("")
-  const [from, setFrom] = useState("")
-  const [to, setTo] = useState("")
+  const [range, setRange] = useState(() => presetRange("30d"))
+  const { from, to } = range
   const [page, setPage] = useState(1)
   const [exporting, setExporting] = useState(false)
 
@@ -132,7 +141,7 @@ export default function ActivityLogPage() {
       cell: (r) => (
         <div>
           <div className="font-medium">{r.actor_name}</div>
-          <div className="text-xs text-neutral-500">
+          <div className="text-xs text-muted-foreground">
             {[r.actor_employee_no, r.actor_role ? ROLE_LABEL[r.actor_role] : null].filter(Boolean).join(" · ")}
           </div>
         </div>
@@ -160,13 +169,14 @@ export default function ActivityLogPage() {
           { label: "Module", value: module, onChange: reset(setModule), options: Object.entries(MODULES).map(([value, label]) => ({ value, label })) },
           { label: "Action", value: action, onChange: reset(setAction), options: Object.entries(ACTIONS).map(([value, label]) => ({ value, label })) },
         ]}
-        from={from} to={to} onFrom={reset(setFrom)} onTo={reset(setTo)}
+        from={from} to={to} onRange={(f, t) => { setRange({ from: f, to: t }); setPage(1) }}
         onExport={exportCsv} exporting={exporting}
       />
       <DataTable columns={columns} rows={rows} rowKey={(r) => String(r.id)} loading={loading} error={error}
         page={page} pageSize={15} total={total} onPageChange={setPage} />
-      <p className="mt-3 text-xs text-neutral-500">
-        The log is written by the database and cannot be edited or deleted. Passwords are never recorded.
+      <p className="mt-3 text-xs text-muted-foreground">
+        The log is written by the database and cannot be edited. A finished year can only be removed from the Archive tab,
+        after it was exported. Passwords are never recorded.
       </p>
     </>
   )

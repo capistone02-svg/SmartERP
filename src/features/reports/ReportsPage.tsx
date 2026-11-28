@@ -559,13 +559,22 @@ function AdminReport() {
   )
 }
 
+// The record each area's report downloads - used for the Export permission
+const EXPORT_RESOURCE = {
+  human_resources: "employees",
+  finance_accounting: "financial_entries",
+  inventory_warehouse: "inventory_movements",
+  sales_marketing: "sales_transactions",
+  customer_service: "service_cases",
+} as const
+
 export default function ReportsPage() {
         <style>{`@media print {
         aside, nav, header, .no-print { display: none !important; }
         body { background: white !important; }
         main { padding: 0 !important; margin: 0 !important; }
       }`}</style>
-  const { profile } = useAuth()
+  const { profile, can } = useAuth()
   const [adminView, setAdminView] = useState("summary")
   if (!profile) return null
 
@@ -587,10 +596,10 @@ export default function ReportsPage() {
               ))}
             </select>
           </div>
-          {adminView === "summary" ? <AdminReport /> : <AreaReport key={adminView} area={adminView as FunctionalArea} canExport />}
+          {adminView === "summary" ? <AdminReport /> : <AreaReport key={adminView} area={adminView as FunctionalArea} canExport={can(EXPORT_RESOURCE[adminView as FunctionalArea], "export")} />}
         </>
       ) : area ? (
-        <AreaReport key={area} area={area} canExport={profile.role === "department_head"} />
+        <AreaReport key={area} area={area} canExport={can(EXPORT_RESOURCE[area], "export")} />
       ) : (
         <p className="text-sm text-neutral-500">No reports are available for your account.</p>
       )}

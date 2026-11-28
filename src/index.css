@@ -10,6 +10,7 @@
     --brand-hover: #0b5189;
     --brand-soft: #dbeefc;
     --warning: #e08a1e;
+    --warning-soft: #fdf3e3;
     --success: #16a34a;
     --success-soft: #dcfce7;
   }
@@ -66,6 +67,7 @@
   --color-brand-text: var(--brand);
   --color-brand-soft: var(--brand-soft);
   --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
   /* success colors: HrOverview / DetailsTab / HistoryTab use bg-success, text-success, bg-success-soft */
   --color-success: var(--success);
   --color-success-soft: var(--success-soft);

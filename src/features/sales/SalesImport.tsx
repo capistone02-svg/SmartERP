@@ -75,7 +75,7 @@ export function SalesImport({ onDone }: { onDone: () => void }) {
   const [dupes, setDupes] = useState(0)
   const [busy, setBusy] = useState(false)
 
-  if (!can("sales_transactions", "create")) return null
+  if (!can("sales_transactions", "create") || !can("sales_transactions", "import")) return null
 
   function reset() {
     setFileName("")

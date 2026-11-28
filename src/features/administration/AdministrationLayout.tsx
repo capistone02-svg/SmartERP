@@ -7,6 +7,7 @@ const TABS = [
   { label: "Permissions", to: "/administration/permissions" },
   { label: "Activity Log", to: "/administration/activity" },
   { label: "Login Log", to: "/administration/logins" },
+  { label: "Archive", to: "/administration/archive" },
 ]
 
 export default function AdministrationLayout() {
