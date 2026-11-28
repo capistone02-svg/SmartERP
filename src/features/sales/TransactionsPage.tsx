@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import type { Column } from "@/components/shared/DataTable"
 import { ResourcePage, type FieldDef, type Option } from "@/components/shared/ResourcePage"
+import { StatusPill } from "@/components/shared/StatusPill"
 import { ApprovalBadge, type ApprovalStatus } from "@/features/approvals/ApprovalBadge"
 import { SalesImport } from "@/features/sales/SalesImport"
 import { formatDate, num, peso, todayStr } from "@/lib/format"
@@ -18,6 +19,8 @@ interface Sale {
   created_by: string | null
   approval_status: ApprovalStatus
   review_note: string | null
+  refund_state: "none" | "approved" | "completed"
+  refunded_amount: number
   product: { name: string; sku: string } | null
   customer: { full_name: string } | null
 }
@@ -40,6 +43,17 @@ export default function TransactionsPage() {
     { header: "Qty", cell: (r) => num(r.quantity), className: "text-right" },
     { header: "Amount", cell: (r) => peso(r.amount), className: "text-right" },
     { header: "Status", cell: (r) => <ApprovalBadge status={r.approval_status} note={r.review_note} /> },
+    {
+      header: "Refund",
+      cell: (r) => (r.refund_state === "none" ? (
+        <span className="text-muted-foreground">—</span>
+      ) : (
+        <StatusPill
+          label={`${r.refund_state === "approved" ? "Approved" : "Completed"} · ${peso(r.refunded_amount)}`}
+          tone={r.refund_state === "approved" ? "blue" : "green"}
+        />
+      )),
+    },
   ]
   const fields: FieldDef[] = [
     { name: "product_id", label: "Product", type: "select", options: products, required: true, fullWidth: true },
@@ -53,7 +67,7 @@ export default function TransactionsPage() {
   return (
     <ResourcePage<Sale>
       resource="sales_transactions" table="sales_transactions" singular="Sale"
-      select="id, transaction_no, transaction_date, product_id, customer_id, quantity, amount, notes, created_by, approval_status, review_note, product:products(name, sku), customer:customers(full_name)"
+      select="id, transaction_no, transaction_date, product_id, customer_id, quantity, amount, notes, created_by, approval_status, review_note, refund_state, refunded_amount, product:products(name, sku), customer:customers(full_name)"
       searchColumns={["transaction_no", "notes"]} searchPlaceholder="Search transaction no. or notes..."
       orderBy="transaction_date" ascending={false} columns={columns} fields={fields} rowKey={(r) => r.id} approval
       canEditRow={(r, me, role) => role !== "staff" || (r.created_by === me && r.approval_status !== "approved")}

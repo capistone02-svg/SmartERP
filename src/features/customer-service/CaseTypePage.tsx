@@ -13,7 +13,8 @@ import { customerLookup, productLookup, saleLookup } from "@/lib/lookups"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import {
-  CASE_SELECT, KINDS, PENDING, RATINGS, SEVERITIES, SEVERITY_TONE, STATUS_TONE, TYPE_LABEL, TYPE_TONE,
+  CATEGORIES, CATEGORY_LABEL, CASE_SELECT, KINDS, PENDING, RATINGS, SEVERITIES, SEVERITY_TONE,
+  STATUS_TONE, TYPE_LABEL, TYPE_TONE,
   caseFilters, caseSorts, stars, statusLabel, type CaseKind, type CaseRow,
 } from "./caseConfig"
 import CaseDrawer from "./CaseDrawer"
@@ -100,6 +101,7 @@ export default function CaseTypePage({ kind }: { kind: CaseKind | "all" }) {
     columns.push({ header: "Product", cell: (r) => r.product_name ?? "—" })
   }
   if (kind === "complaint") {
+    columns.push({ header: "Category", cell: (r) => (r.category ? CATEGORY_LABEL[r.category] ?? r.category : "—") })
     columns.push({ header: "Severity", cell: (r) => (r.severity ? <StatusPill label={r.severity} tone={SEVERITY_TONE[r.severity as keyof typeof SEVERITY_TONE]} /> : "—") })
     columns.push({ header: "Due", cell: (r) => <span className={isOverdue(r) ? "font-medium text-destructive" : ""}>{formatDate(r.due_date)}{isOverdue(r) ? " (overdue)" : ""}</span> })
   }
@@ -124,7 +126,10 @@ export default function CaseTypePage({ kind }: { kind: CaseKind | "all" }) {
   // ----- form fields (different for every case type) -----
   const fields: FieldDef[] = []
   if (cfg) {
-    const staffStatuses = cfg.statuses.filter((s) => s.value !== "approved" && s.value !== "denied")
+    // Staff never decide (approved/denied) and never complete a refund -
+    // completion happens only after the Head approves it.
+    const staffStatuses = cfg.statuses.filter((s) =>
+      s.value !== "approved" && s.value !== "denied" && !(kind === "refund" && s.value === "resolved"))
     const statusOptions = isHead ? cfg.statuses : staffStatuses
     const isDone = (v: Record<string, string>) => cfg.done.includes(v.status)
 
@@ -148,6 +153,10 @@ export default function CaseTypePage({ kind }: { kind: CaseKind | "all" }) {
       type: "search", lookup: productLookup, placeholder: "Search product name or SKU",
     })
     if (kind === "complaint") {
+      fields.push({
+        name: "category", label: "Category (what the complaint is about)", type: "select",
+        options: CATEGORIES, required: true, defaultValue: "product", placeholder: "Choose a category",
+      })
       fields.push({ name: "sales_transaction_id", label: "Related sale (optional)", type: "search", lookup: saleLookup, placeholder: "Search by transaction no., product or customer", fullWidth: true })
       fields.push({ name: "severity", label: "Severity", type: "select", options: SEVERITIES, required: true, defaultValue: "medium" })
       fields.push({ name: "due_date", label: "Due date (set automatically if empty)", type: "date" })

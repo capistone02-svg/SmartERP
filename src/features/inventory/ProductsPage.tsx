@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
 import type { Column } from "@/components/shared/DataTable"
 import { ResourcePage, type FieldDef, type Option } from "@/components/shared/ResourcePage"
-import { peso } from "@/lib/format"
+import { num, peso } from "@/lib/format"
 import { supabase } from "@/lib/supabase"
+import { StockBadge } from "./StockBadge"
 
 interface Product {
   id: string
@@ -30,10 +31,38 @@ export default function ProductsPage() {
       )
   }, [])
 
+  // Live stock from the movements view - a product list without stock is not
+  // much use in the warehouse module.
+  const [stock, setStock] = useState<Record<string, { quantity: number; stock_status: string }>>({})
+  useEffect(() => {
+    supabase.from("v_product_stock").select("product_id, quantity, stock_status").then(({ data }) => {
+      const m: Record<string, { quantity: number; stock_status: string }> = {}
+      for (const r of (data ?? []) as { product_id: string; quantity: number; stock_status: string }[]) {
+        m[r.product_id] = { quantity: r.quantity, stock_status: r.stock_status }
+      }
+      setStock(m)
+    })
+  }, [])
+
   const columns: Column<Product>[] = [
     { header: "SKU", cell: (r) => r.sku },
     { header: "Product", cell: (r) => <span className="font-medium">{r.name}</span> },
     { header: "Category", cell: (r) => r.category },
+    {
+      header: "In stock",
+      cell: (r) => {
+        const s = stock[r.id]
+        return s ? (
+          <span className="flex items-center justify-end gap-1.5">
+            <StockBadge status={s.stock_status} />
+            <span>{num(s.quantity)} {r.unit}</span>
+          </span>
+        ) : (
+          <span className="text-muted-foreground">—</span>
+        )
+      },
+      className: "text-right",
+    },
     { header: "Unit price", cell: (r) => peso(r.unit_price), className: "text-right" },
     { header: "Supplier", cell: (r) => r.supplier?.name ?? "—" },
     { header: "Low-stock level", cell: (r) => r.low_stock_threshold, className: "text-right" },

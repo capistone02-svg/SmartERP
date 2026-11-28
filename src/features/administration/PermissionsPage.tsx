@@ -49,7 +49,9 @@ function Cell({ row, field, onToggle }: { row: PermRow | undefined; field: Field
   // The Administrator never changes records. Only the download of reports can be switched.
   const locked = row.role === "admin" && field !== "can_export"
   return (
-    <Checkbox checked={row[field]} disabled={locked} aria-label={`${field} ${row.resource} ${row.role}`}
+    // mx-auto: the Checkbox is a block-level flex box, which text-center in the
+    // cell does not move - auto margins are what actually centers it.
+    <Checkbox className="mx-auto" checked={row[field]} disabled={locked} aria-label={`${field} ${row.resource} ${row.role}`}
       onCheckedChange={(c) => onToggle(row, field, c === true)} />
   )
 }

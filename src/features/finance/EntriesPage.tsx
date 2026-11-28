@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react"
 import type { Column } from "@/components/shared/DataTable"
+import { KpiCard } from "@/components/shared/KpiCard"
 import { ResourcePage, type FieldDef, type Option } from "@/components/shared/ResourcePage"
 import { StatusPill } from "@/components/shared/StatusPill"
-import { formatDate, peso, todayStr } from "@/lib/format"
+import { formatDate, num, peso, todayStr } from "@/lib/format"
 import { ApprovalBadge, type ApprovalStatus } from "@/features/approvals/ApprovalBadge"
 import { supabase } from "@/lib/supabase"
 
@@ -36,6 +37,24 @@ export default function EntriesPage() {
   const [refs, setRefs] = useState<SaleRef[]>([])
   useEffect(() => {
     supabase.rpc("lookup_sales_refs").then(({ data }) => setRefs((data ?? []) as SaleRef[]))
+  }, [])
+
+  // Money view first: what this month looks like before you touch the journal.
+  const [month, setMonth] = useState<{ revenue: number; expenses: number; pending: number } | null>(null)
+  useEffect(() => {
+    const now = new Date()
+    const start = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`
+    supabase.from("financial_entries")
+      .select("entry_type, amount, approval_status")
+      .gte("entry_date", start)
+      .then(({ data }) => {
+        const rows = (data ?? []) as { entry_type: string; amount: number; approval_status: string | null }[]
+        setMonth({
+          revenue: rows.filter((r) => r.entry_type === "revenue").reduce((s, r) => s + Number(r.amount), 0),
+          expenses: rows.filter((r) => r.entry_type === "expense").reduce((s, r) => s + Number(r.amount), 0),
+          pending: rows.filter((r) => r.approval_status === "pending").length,
+        })
+      })
   }, [])
   const saleOptions: Option[] = refs.map((r) => ({
     value: r.id,
@@ -77,7 +96,14 @@ export default function EntriesPage() {
   ]
 
   return (
-    <ResourcePage<Entry>
+    <>
+      <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiCard label="Revenue this month" value={peso(month?.revenue ?? 0)} />
+        <KpiCard label="Expenses this month" value={peso(month?.expenses ?? 0)} />
+        <KpiCard label="Net this month" value={peso((month?.revenue ?? 0) - (month?.expenses ?? 0))} hint="Revenue minus expenses" />
+        <KpiCard label="Waiting for approval" value={num(month?.pending ?? 0)} hint="Entries a Head still has to review" />
+      </div>
+      <ResourcePage<Entry>
       resource="financial_entries" table="financial_entries" singular="Entry"
       select="id, entry_no, entry_date, entry_type, category, description, amount, reference, sales_transaction_id, created_by, approval_status, review_note"
       searchColumns={["entry_no", "category", "description", "reference"]} searchPlaceholder="Search entries..."
@@ -87,6 +113,7 @@ export default function EntriesPage() {
         name: "entry_type", label: "Type",
         options: [{ value: "revenue", label: "Revenue" }, { value: "expense", label: "Expense" }],
       }, STATUS_FILTER]}
-    />
+      />
+    </>
   )
 }
