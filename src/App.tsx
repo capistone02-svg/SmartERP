@@ -29,6 +29,9 @@ import AccountsPage from "@/features/hr/AccountsPage"
 import EmployeesPage from "@/features/hr/EmployeesPage"
 import HrLayout from "@/features/hr/HrLayout"
 import HrOverview from "@/features/hr/HrOverview"
+import OnboardingPage from "@/features/hr/OnboardingPage"
+import EmployeeProfilePage from "@/features/people/EmployeeProfilePage"
+import TeamPage from "@/features/people/TeamPage"
 import AdministrationLayout from "@/features/administration/AdministrationLayout"
 import PermissionsPage from "@/features/administration/PermissionsPage"
 import UsersPage from "@/features/administration/UsersPage"
@@ -59,11 +62,15 @@ export default function App() {
                 <Route path="/" element={<HomePage />} />
                 <Route path="/profile" element={<ProfilePage />} />
                 <Route path="/settings" element={<SettingsPage />} />
+                {/* One person, one file: HR sees the personnel file, their own department head
+                    sees the work profile, anyone else sees only their own record. */}
+                <Route path="/people/:id" element={<EmployeeProfilePage />} />
                 <Route path="/reports" element={<ReportsPage />} />
                 <Route element={<RequireAccess area="human_resources" />}>
                   <Route path="/hr" element={<HrLayout />}>
                     <Route index element={<HrOverview />} />
                     <Route path="employees" element={<EmployeesPage />} />
+                    <Route path="onboarding" element={<OnboardingPage />} />
                     <Route path="accounts" element={<AccountsPage />} />
                   </Route>
                 </Route>
@@ -103,6 +110,8 @@ export default function App() {
         <Route path="inquiries" element={<CaseTypePage key="inquiry" kind="inquiry" />} />
         <Route path="feedback" element={<CaseTypePage key="feedback" kind="feedback" />} />
         <Route path="cases" element={<CasesPage />} />
+        {/* Team tab: Department Head + Admin of this department */}
+        <Route path="team" element={<TeamPage area="customer_service" />} />
       </Route>
                 </Route>
                 <Route element={<RequireAccess adminOnly />}>

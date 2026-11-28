@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from "react"
 import { Pencil, Plus, Search, Trash2 } from "lucide-react"
 import { toast } from "sonner"
 import { ConfirmDialog } from "@/components/shared/ConfirmDialog"
@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button"
 import { APPROVALS_CHANGED } from "@/features/approvals/usePendingCount"
 import { useAuth } from "@/features/auth/AuthContext"
 import { useDebounced } from "@/hooks/useDebounced"
-import { usePagedQuery } from "@/hooks/usePagedQuery"
+import { usePagedQuery, type Condition } from "@/hooks/usePagedQuery"
 import { deleteRecord, saveRecord } from "@/lib/records"
 import { rowsPerPage } from "@/lib/prefs"
 import { cn } from "@/lib/utils"
@@ -35,9 +35,21 @@ export interface FieldDef {
   action?: { label: string; onClick: () => void } // small link under the input (e.g. "+ New customer")
 }
 export interface FilterDef {
-  name: string
+  name: string // column to filter (or a unique key when "values" or "op" is used)
   label: string
-  options: Option[]
+  type?: "select" | "search" | "date" // default: "select"
+  options?: Option[]
+  lookup?: Lookup // for type "search"
+  column?: string // the real column, when it differs from "name"
+  op?: "gte" | "lte" // for type "date": on or after / on or before
+  values?: Record<string, string[]> // one choice that matches several values
+  join?: { from: string; to: string } // change to the select needed while this filter is on
+}
+export interface SortDef {
+  value: string
+  label: string
+  column: string
+  ascending: boolean
 }
 
 export interface ResourcePageProps<T> {
@@ -53,6 +65,7 @@ export interface ResourcePageProps<T> {
   rowKey: (row: T) => string
   fields?: FieldDef[]
   filters?: FilterDef[]
+  sorts?: SortDef[] // adds a "Sort" list; the default order is orderBy / ascending
   readOnly?: boolean
   allowEdit?: boolean
   toForm?: (row: T) => Record<string, string>
@@ -68,6 +81,7 @@ export interface ResourcePageProps<T> {
   // Called while the form dialog is open with a setField function, and with
   // null when it closes - lets the caller fill a field (e.g. after a quick-create).
   onFormReady?: (api: ResourceFormApi | null) => void
+  hideCreate?: boolean // hide the standard Add button (the page offers its own way to add)
 }
 
 export interface ResourceFormApi {
@@ -165,6 +179,7 @@ export function ResourcePage<T>(p: ResourcePageProps<T>) {
   const search = useDebounced(searchInput, 300)
   const [filterValues, setFilterValues] = useState<Record<string, string>>({})
   const [page, setPage] = useState(1)
+  const [sortValue, setSortValue] = useState("")
   const [refreshKey, setRefreshKey] = useState(0)
   const [dialog, setDialog] = useState<{ mode: "create" } | { mode: "edit"; row: T } | null>(null)
   const [values, setValues] = useState<Record<string, string>>({})
@@ -215,14 +230,34 @@ export function ResourcePage<T>(p: ResourcePageProps<T>) {
     }
   }, [dialog, onFormReady])
 
-  const eq = useMemo(() => ({ ...filterValues, ...(p.fixedEq ?? {}) }), [filterValues, p.fixedEq])
+  // Turn the chosen filters into query conditions
+  const eq: Record<string, string> = {}
+  const where: Condition[] = []
+  let select = p.select
+  for (const f of p.filters ?? []) {
+    const value = filterValues[f.name]
+    if (!value) continue
+    const column = f.column ?? f.name
+    if (f.op) where.push({ op: f.op, column, value })
+    else if (f.values) where.push({ op: "in", column, value: f.values[value] ?? [value] })
+    else eq[column] = value
+    if (f.join) select = select.replace(f.join.from, f.join.to)
+  }
+  Object.assign(eq, p.fixedEq ?? {})
+  const sort = p.sorts?.find((s) => s.value === sortValue)
   const { rows, total, loading, error } = usePagedQuery<T>({
-    table: p.table, select: p.select, searchColumns: p.searchColumns, search,
-    eq, orderBy: p.orderBy, ascending: p.ascending, page, pageSize, refreshKey: refreshKey + (p.refreshSignal ?? 0),
+    table: p.table, select, searchColumns: p.searchColumns, search,
+    eq, where, orderBy: sort?.column ?? p.orderBy, ascending: sort ? sort.ascending : p.ascending,
+    page, pageSize, refreshKey: refreshKey + (p.refreshSignal ?? 0),
   })
+  const filtered = Object.values(filterValues).some(Boolean) || !!sortValue
+  const setFilter = (name: string, value: string) => {
+    setFilterValues((v) => ({ ...v, [name]: value }))
+    setPage(1)
+  }
 
   if (!profile) return null
-  const canCreate = !p.readOnly && fields.length > 0 && can(p.resource, "create")
+  const canCreate = !p.readOnly && !p.hideCreate && fields.length > 0 && can(p.resource, "create")
   const canUpdate = !p.readOnly && p.allowEdit !== false && fields.length > 0 && can(p.resource, "update")
   const canDelete = !p.readOnly && can(p.resource, "delete")
   const ownerOf = (row: T) => (row as { created_by?: string | null }).created_by
@@ -329,20 +364,48 @@ export function ResourcePage<T>(p: ResourcePageProps<T>) {
             className={cn(inputClass, "pl-9")}
           />
         </div>
-        {(p.filters ?? []).map((f) => (
-          <select
-            key={f.name}
-            aria-label={f.label}
-            value={filterValues[f.name] ?? ""}
-            onChange={(e) => { setFilterValues((v) => ({ ...v, [f.name]: e.target.value })); setPage(1) }}
-            className={cn(inputClass, "w-auto")}
-          >
-            <option value="">{f.label}: All</option>
-            {f.options.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
+        {(p.filters ?? []).map((f) =>
+          f.type === "date" ? (
+            <label key={f.name} className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              {f.label}
+              <input type="date" value={filterValues[f.name] ?? ""}
+                onChange={(e) => setFilter(f.name, e.target.value)} className={cn(inputClass, "w-auto")} />
+            </label>
+          ) : f.type === "search" ? (
+            <div key={f.name} className="w-full sm:w-56">
+              <SearchSelect value={filterValues[f.name] ?? ""} onChange={(v) => setFilter(f.name, v)}
+                lookup={f.lookup} placeholder={`${f.label}: All`} />
+            </div>
+          ) : (
+            <select
+              key={f.name}
+              aria-label={f.label}
+              value={filterValues[f.name] ?? ""}
+              onChange={(e) => setFilter(f.name, e.target.value)}
+              className={cn(inputClass, "w-auto")}
+            >
+              <option value="">{f.label}: All</option>
+              {(f.options ?? []).map((o) => (
+                <option key={o.value} value={o.value}>{o.label}</option>
+              ))}
+            </select>
+          ),
+        )}
+        {p.sorts && (
+          <select aria-label="Sort" value={sortValue}
+            onChange={(e) => { setSortValue(e.target.value); setPage(1) }} className={cn(inputClass, "w-auto")}>
+            <option value="">Sort: Default</option>
+            {p.sorts.map((s) => (
+              <option key={s.value} value={s.value}>{s.label}</option>
             ))}
           </select>
-        ))}
+        )}
+        {filtered && (
+          <button type="button" onClick={() => { setFilterValues({}); setSortValue(""); setPage(1) }}
+            className="text-sm font-medium text-brand-text hover:underline">
+            Clear filters
+          </button>
+        )}
          <div className="ml-auto flex items-center gap-2">
           {p.toolbarExtra?.(() => setRefreshKey((k) => k + 1))}
           {canCreate && (
