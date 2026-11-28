@@ -14,20 +14,9 @@ import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import {
   CASE_SELECT, KINDS, PENDING, RATINGS, SEVERITIES, SEVERITY_TONE, STATUS_TONE, TYPE_LABEL, TYPE_TONE,
-  stars, statusLabel, type CaseKind, type CaseRow,
+  caseFilters, caseSorts, stars, statusLabel, type CaseKind, type CaseRow,
 } from "./caseConfig"
 import CaseDrawer from "./CaseDrawer"
-
-const ALL_STATUSES: Option[] = [
-  { value: "open", label: "Open / Received / Requested" },
-  { value: "in_progress", label: "In progress / Investigating" },
-  { value: "for_review", label: "Head review" },
-  { value: "approved", label: "Approved" },
-  { value: "denied", label: "Denied" },
-  { value: "resolved", label: "Resolved / Answered / Completed" },
-  { value: "closed", label: "Closed" },
-]
-const ALL_TYPES: Option[] = Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label }))
 
 // One page for every case type: "all" is the read-only list of everything,
 // the other four are working pages with their own form fields and steps.
@@ -224,13 +213,6 @@ export default function CaseTypePage({ kind }: { kind: CaseKind | "all" }) {
     toast.success(`${name} added as a customer.`)
   }
 
-  const filters = [
-    cfg ? { name: "status", label: "Status", options: cfg.statuses } : { name: "status", label: "Status", options: ALL_STATUSES },
-    ...(cfg ? [] : [{ name: "case_type", label: "Type", options: ALL_TYPES }]),
-    ...(staff.length > 0 ? [{ name: "assigned_to", label: "Assigned to", options: staff }] : []),
-    ...(kind === "complaint" ? [{ name: "severity", label: "Severity", options: SEVERITIES.map((s) => ({ value: s.value, label: s.value[0].toUpperCase() + s.value.slice(1) })) }] : []),
-  ]
-
   return (
     <>
       {cfg && <p className="mb-4 text-sm text-muted-foreground">{cfg.blurb}</p>}
@@ -245,7 +227,8 @@ export default function CaseTypePage({ kind }: { kind: CaseKind | "all" }) {
         readOnly={!cfg}
         fixedEq={fixedEq} fixedValues={fixedValues} refreshSignal={tick}
         canEditRow={canEditRow}
-        filters={filters}
+        filters={caseFilters(kind, staff)}
+        sorts={caseSorts(kind)}
         emptyText="No cases yet."
         autoFill={autoFill}
         onFormReady={handleFormReady}
