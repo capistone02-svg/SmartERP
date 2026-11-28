@@ -7,6 +7,7 @@ import { useAuth } from "@/features/auth/AuthContext"
 const BASE_TABS = [
   { label: "Overview", to: "/sales", end: true },
   { label: "Transactions", to: "/sales/transactions" },
+  { label: "Refunds", to: "/sales/refunds" },
   { label: "Customers", to: "/sales/customers" },
   { label: "Promotions", to: "/sales/promotions" },
   { label: "Marketing", to: "/sales/marketing" },

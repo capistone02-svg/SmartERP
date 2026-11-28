@@ -17,7 +17,11 @@ export default function CustomerServiceLayout() {
   return (
     <>
       <PageHeader title="Customer Service" description="Complaints, refunds and returns, product inquiries and feedback." />
-      <ModuleTabs tabs={showTeam ? [...TABS, { label: "Team", to: "/customer-service/team" }] : TABS} />
+      <ModuleTabs tabs={showTeam
+        ? [...TABS,
+ { label: "Team", to: "/customer-service/team" },
+           { label: "Sign-ins", to: "/customer-service/sign-ins" }]
+        : TABS} />
       <Outlet />
     </>
   )

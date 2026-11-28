@@ -220,31 +220,6 @@ select * from (values
 where not exists (select 1 from public.customers c where c.email = v.email);
 
 -- ----------------------------------------------------------------------------
--- Sales (approved so dashboards and reports show them)
--- ----------------------------------------------------------------------------
-insert into public.sales_transactions
-  (transaction_date, product_id, customer_id, quantity, amount, notes, approval_status)
-select v.txn_date, p.id, c.id, v.qty, v.amount, v.notes, 'approved'
-from (values
-  (date '2026-09-18', 'CHR-001', 'kim.santos@example.com',    3,  7500.00, 'Bulk order for new office'),
-  (date '2026-09-25', 'PRN-001', 'andres.lim@example.com',    1,  9500.00, null),
-  (date '2026-10-05', 'CHR-001', 'bianca.cruz@example.com',   2,  5000.00, null),
-  (date '2026-10-12', 'PRN-001', 'joel.reyes@example.com',    1,  9500.00, 'Includes setup'),
-  (date '2026-10-20', 'MSE-001', 'kim.santos@example.com',    4,  3400.00, null),
-  (date '2026-10-28', 'DSK-001', 'andres.lim@example.com',    1, 12000.00, 'Member discount applied'),
-  (date '2026-11-03', 'PPR-001', 'nora.bautista@example.com',10,  1200.00, null),
-  (date '2026-11-08', 'CHR-001', 'carlo.mendoza@example.com', 1,  2500.00, null),
-  (date '2026-11-14', 'TNR-001', 'joel.reyes@example.com',    2,  4400.00, null),
-  (date '2026-11-19', 'MSE-001', 'bianca.cruz@example.com',   2,  1700.00, null)
-) as v(txn_date, sku, cust_email, qty, amount, notes)
-join public.products p on p.sku = v.sku
-join public.customers c on c.email = v.cust_email
-where not exists (
-  select 1 from public.sales_transactions st
-  where st.transaction_date = v.txn_date and st.quantity = v.qty and st.amount = v.amount
-);
-
--- ----------------------------------------------------------------------------
 -- Financial entries (approved; two months of activity for the trend charts)
 -- ----------------------------------------------------------------------------
 insert into public.financial_entries
@@ -292,6 +267,31 @@ left join public.suppliers s on s.name = v.supplier
 where not exists (
   select 1 from public.inventory_movements m
   where m.reference_no = v.ref
+);
+
+-- ----------------------------------------------------------------------------
+-- Sales (approved so dashboards and reports show them)
+-- ----------------------------------------------------------------------------
+insert into public.sales_transactions
+  (transaction_date, product_id, customer_id, quantity, amount, notes, approval_status)
+select v.txn_date, p.id, c.id, v.qty, v.amount, v.notes, 'approved'
+from (values
+  (date '2026-09-18', 'CHR-001', 'kim.santos@example.com',    3,  7500.00, 'Bulk order for new office'),
+  (date '2026-09-25', 'PRN-001', 'andres.lim@example.com',    1,  9500.00, null),
+  (date '2026-10-05', 'CHR-001', 'bianca.cruz@example.com',   2,  5000.00, null),
+  (date '2026-10-12', 'PRN-001', 'joel.reyes@example.com',    1,  9500.00, 'Includes setup'),
+  (date '2026-10-20', 'MSE-001', 'kim.santos@example.com',    4,  3400.00, null),
+  (date '2026-10-28', 'DSK-001', 'andres.lim@example.com',    1, 12000.00, 'Member discount applied'),
+  (date '2026-11-03', 'PPR-001', 'nora.bautista@example.com',10,  1200.00, null),
+  (date '2026-11-08', 'CHR-001', 'carlo.mendoza@example.com', 1,  2500.00, null),
+  (date '2026-11-14', 'TNR-001', 'joel.reyes@example.com',    2,  4400.00, null),
+  (date '2026-11-19', 'MSE-001', 'bianca.cruz@example.com',   2,  1700.00, null)
+) as v(txn_date, sku, cust_email, qty, amount, notes)
+join public.products p on p.sku = v.sku
+join public.customers c on c.email = v.cust_email
+where not exists (
+  select 1 from public.sales_transactions st
+  where st.transaction_date = v.txn_date and st.quantity = v.qty and st.amount = v.amount
 );
 
 -- ----------------------------------------------------------------------------

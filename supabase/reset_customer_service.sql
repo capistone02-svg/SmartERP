@@ -74,6 +74,12 @@ alter table public.service_cases alter column customer_id set not null;
 delete from public.case_events;
 delete from public.service_cases;
 
+-- The cases that carried refund decisions are gone: clear the refund state
+-- that fn_sync_sale_refund had written onto the Sales records.
+update public.sales_transactions
+set refund_state = 'none', refunded_amount = 0
+where refund_state <> 'none' or refunded_amount <> 0;
+
 -- ----------------------------------------------------------------------------
 -- 4) Small seed - customers (only people who contact Customer Service)
 --    Only inserted when their e-mail is not already stored, so re-runs
@@ -115,11 +121,17 @@ begin
   select id into v_customer  from public.customers   order by id limit 1;
   select id into v_profile   from public.profiles    order by id limit 1;
 
+  -- The Sales <-> stock rule deducts approved sales from stock: only seed the
+  -- demo sales when the first product has the 3 units the two of them need.
+  if (select coalesce(quantity, 0) from public.v_product_stock where product_id = v_product) < 3 then
+    return;
+  end if;
+
   insert into public.sales_transactions
     (transaction_date, product_id, customer_id, quantity, amount, notes, created_by)
   values
     ((current_date - 20)::date, v_product, v_customer, 1, 1500.00, 'Seed sale for refund demos', v_profile),
-    ((current_date - 8)::date,  v_product, v_customer, 2,  980.00, 'Seed sale for refund demos', v_profile);
+    ((current_date - 8)::date,  v_product, v_customer, 2, 2000.00, 'Seed sale for refund demos', v_profile);
 
   if exists (
     select 1 from information_schema.columns

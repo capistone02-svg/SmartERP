@@ -102,6 +102,19 @@ export const RATINGS: Option[] = [
 ]
 export const stars = (n: number | null) => (n ? "★".repeat(n) + "☆".repeat(5 - n) : "—")
 
+// What a complaint is about - not every complaint is about a product.
+export const CATEGORIES: Option[] = [
+  { value: "product", label: "Product" },
+  { value: "service", label: "Service" },
+  { value: "billing", label: "Billing / payment" },
+  { value: "delivery", label: "Delivery" },
+  { value: "staff", label: "Staff conduct" },
+  { value: "other", label: "Other" },
+]
+export const CATEGORY_LABEL: Record<string, string> = Object.fromEntries(
+  CATEGORIES.map((c) => [c.value, c.label]),
+)
+
 // ----- list filters and sorting (each tab gets its own set) -----
 const PRIORITY_FILTER: FilterDef = {
   name: "priority", label: "Priority", column: "customer.card_type",
@@ -122,6 +135,7 @@ export function caseFilters(kind: CaseKind | "all", staff: Option[]): FilterDef[
   if (!cfg) list.push({ name: "case_type", label: "Type", options: Object.entries(TYPE_LABEL).map(([value, label]) => ({ value, label })) })
   list.push({ name: "status", label: "Status", options: cfg ? cfg.statuses : ALL_STATUSES })
   if (kind === "complaint") {
+    list.push({ name: "category", label: "Category", options: CATEGORIES })
     list.push({ name: "severity", label: "Severity", options: [
       { value: "high", label: "High" }, { value: "medium", label: "Medium" }, { value: "low", label: "Low" },
     ] })
@@ -186,8 +200,9 @@ export interface CaseRow {
   due_date: string | null
   refund_amount: number | null
   rating: number | null
+  category: string | null
   customer: { full_name: string; card_type: string | null } | null
 }
 
 export const CASE_SELECT =
-  "id, case_no, case_type, customer_id, subject, description, date_submitted, status, assigned_to, resolution_details, resolution_date, created_by, product_id, product_name, sales_transaction_id, sale_no, severity, due_date, refund_amount, rating, customer:customers(full_name, card_type)"
+  "id, case_no, case_type, customer_id, subject, description, date_submitted, status, assigned_to, resolution_details, resolution_date, created_by, product_id, product_name, sales_transaction_id, sale_no, severity, due_date, refund_amount, rating, category, customer:customers(full_name, card_type)"

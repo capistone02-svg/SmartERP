@@ -10,7 +10,7 @@ import { formatDate, num, peso } from "@/lib/format"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 import {
-  CASE_SELECT, SEVERITY_TONE, STATUS_TONE, TYPE_LABEL, TYPE_TONE, stars, statusLabel, type CaseRow,
+  CATEGORY_LABEL, CASE_SELECT, SEVERITY_TONE, STATUS_TONE, TYPE_LABEL, TYPE_TONE, stars, statusLabel, type CaseRow,
 } from "./caseConfig"
 
 interface EventRow { id: string; kind: string; body: string; actor_name: string | null; created_at: string }
@@ -94,7 +94,8 @@ export default function CaseDrawer({ caseId, onClose, onChanged }: { caseId: str
   const isHead = profile.role === "department_head" && profile.functional_area === "customer_service"
   const mine = !!row && (row.created_by === profile.id || (!!profile.employee_id && row.assigned_to === profile.employee_id))
   const canNote = isHead || (profile.role === "staff" && profile.functional_area === "customer_service" && mine)
-  const canTake = profile.role === "staff" && !!row && !row.assigned_to && !!profile.employee_id
+  const canTake = profile.role === "staff" && profile.functional_area === "customer_service" &&
+    !!row && !row.assigned_to && !!profile.employee_id
   const canDecide = isHead && row?.case_type === "refund" && (row.status === "open" || row.status === "for_review")
 
   async function update(values: Record<string, unknown>, done: string) {
@@ -167,6 +168,7 @@ export default function CaseDrawer({ caseId, onClose, onChanged }: { caseId: str
                 <Field label="Assigned to">{row.assigned_to ? (staff[row.assigned_to] ?? "Employee") : <span className="text-muted-foreground">Unassigned</span>}</Field>
                 {row.product_name && <Field label="Product">{row.product_name}</Field>}
                 {row.sale_no && <Field label="Sale">{row.sale_no}</Field>}
+                {row.category && <Field label="Category">{CATEGORY_LABEL[row.category] ?? row.category}</Field>}
                 {row.severity && <Field label="Severity"><StatusPill label={row.severity} tone={SEVERITY_TONE[row.severity as keyof typeof SEVERITY_TONE]} /></Field>}
                 {row.due_date && <Field label="Due"><span className={cn(overdue && "font-medium text-destructive")}>{formatDate(row.due_date)}{overdue ? " (overdue)" : ""}</span></Field>}
                 {row.refund_amount != null && <Field label="Refund amount">{peso(row.refund_amount)}</Field>}

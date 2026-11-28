@@ -48,6 +48,15 @@ export default function MovementsPage() {
       ),
     },
     { header: "Quantity", cell: (r) => num(r.quantity), className: "text-right" },
+    {
+      header: "Stock impact",
+      cell: (r) => (
+        <span className={r.movement_type === "stock_in" ? "text-success" : "text-destructive"}>
+          {r.movement_type === "stock_in" ? "+" : "−"}{num(r.quantity)}
+        </span>
+      ),
+      className: "text-right",
+    },
     { header: "Supplier", cell: (r) => r.supplier?.name ?? "—" },
     { header: "Warehouse", cell: (r) => r.warehouse?.name ?? "—" },
     { header: "Reference", cell: (r) => r.reference_no ?? "—" },
