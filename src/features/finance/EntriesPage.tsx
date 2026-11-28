@@ -37,6 +37,7 @@ interface MovementRef {
   movement_type: string
   quantity: number
   product_label: string
+  supplier_name?: string
 }
 
 const STATUS_FILTER = {
@@ -84,7 +85,7 @@ export default function EntriesPage() {
 
   const movementOptions: Option[] = movementRefs.map((m) => ({
     value: m.id,
-    label: `${m.reference_no ?? "No ref"} · ${m.movement_type === "stock_in" ? "Stock in" : "Stock out"} ${m.quantity} (${m.product_label}) · ${formatDate(m.movement_date)}`,
+    label: `${m.reference_no ?? "No ref"} · ${m.movement_type === "stock_in" ? "Stock in" : "Stock out"} ${m.quantity} (${m.product_label}) · ${m.supplier_name ? m.supplier_name + " · " : ""}${formatDate(m.movement_date)}`,
   }))
 
   const columns: Column<Entry>[] = [
@@ -115,7 +116,7 @@ export default function EntriesPage() {
           return mv ? (
             <span
               className="text-xs font-medium text-blue-700"
-              title={`${mv.product_label} (${mv.movement_type} ${mv.quantity})`}
+              title={`${mv.product_label} (${mv.movement_type} ${mv.quantity}) · ${mv.supplier_name ?? ""}`}
             >
               Stock: {mv.reference_no ?? "Movement"}
             </span>

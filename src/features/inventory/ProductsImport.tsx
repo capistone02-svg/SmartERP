@@ -23,7 +23,7 @@ const HEADERS = [
 const SAMPLE_ROWS = [
   ["LAP-001", "Business Laptop 14-inch", "Electronics", "unit", "42500.00", "5", "Alpha Distribution", "Core i5 16GB 512GB SSD"],
   ["CAB-002", "HDMI Cable 2m", "Accessories", "pc", "320.00", "20", "Prime Wholesale Inc", "Braided high speed HDMI 2.0"],
-  ["NOT-001", "Spiral Notebook A5", "Office Supplies", "pack", "85.00", "30", "", "Pack of 3 ruled notebooks"],
+  ["NOT-001", "Spiral Notebook A5", "Office Supplies", "pack", "85.00", "30", "Prime Wholesale Inc", "Pack of 3 ruled notebooks"],
 ]
 
 const TEMPLATE_CONTENT =

@@ -126,6 +126,7 @@ declare
   v_bal       integer;
   v_remaining integer;
   v_take      integer;
+  v_sup       uuid;
 begin
   if NEW.approval_status = 'approved' and NEW.deleted_at is null then
     if TG_OP = 'INSERT'
@@ -151,6 +152,8 @@ begin
         raise exception 'Insufficient stock for this product.';
       end if;
 
+      select supplier_id into v_sup from public.products where id = NEW.product_id;
+
       -- one stock_out row per warehouse it ships from, richest stock first
       v_remaining := NEW.quantity;
       for v_wh, v_bal in
@@ -171,9 +174,9 @@ begin
         if v_bal > 0 then
           v_take := least(v_bal, v_remaining);
           insert into public.inventory_movements
-            (movement_type, quantity, movement_date, warehouse_id, product_id,
+            (movement_type, quantity, movement_date, warehouse_id, product_id, supplier_id,
              reference_no, remarks, approval_status, sale_id)
-          values ('stock_out', v_take, NEW.transaction_date, v_wh, NEW.product_id,
+          values ('stock_out', v_take, NEW.transaction_date, v_wh, NEW.product_id, v_sup,
                   NEW.transaction_no, 'Stock deducted for sale ' || NEW.transaction_no,
                   'approved', NEW.id);
           v_remaining := v_remaining - v_take;
@@ -236,6 +239,8 @@ alter table public.financial_entries
 create index if not exists idx_financial_entries_movement
   on public.financial_entries (inventory_movement_id);
 
+drop function if exists public.lookup_movement_refs();
+
 create or replace function public.lookup_movement_refs()
 returns table (
   id             uuid,
@@ -243,13 +248,16 @@ returns table (
   movement_date  date,
   movement_type  text,
   quantity       integer,
-  product_label  text
+  product_label  text,
+  supplier_name  text
 )
 language sql stable set search_path = public as $$
   select m.id, m.reference_no, m.movement_date, m.movement_type, m.quantity,
-         p.sku || ' - ' || p.name as product_label
+         p.sku || ' - ' || p.name as product_label,
+         coalesce(s.name, 'No supplier') as supplier_name
   from public.inventory_movements m
   join public.products p on p.id = m.product_id
+  left join public.suppliers s on s.id = m.supplier_id
   where m.deleted_at is null
     and m.approval_status = 'approved'
   order by m.movement_date desc, m.created_at desc
@@ -361,3 +369,32 @@ update public.permissions
 set can_import = true, updated_at = now()
 where resource = 'products'
   and role in ('department_head', 'staff');
+
+-- ---------------------------------------------------------------------------
+-- 8. Movement supplier integrity: auto-fill supplier from product when null
+--    and backfill existing dispatches
+-- ---------------------------------------------------------------------------
+create or replace function public.fn_movements_default_supplier() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if NEW.supplier_id is null and NEW.product_id is not null then
+    select supplier_id into NEW.supplier_id
+    from public.products
+    where id = NEW.product_id;
+  end if;
+  return NEW;
+end;
+$$;
+
+drop trigger if exists trg_movements_default_supplier on public.inventory_movements;
+create trigger trg_movements_default_supplier
+  before insert or update of product_id, supplier_id on public.inventory_movements
+  for each row execute function public.fn_movements_default_supplier();
+
+update public.inventory_movements m
+set supplier_id = p.supplier_id, updated_at = now()
+from public.products p
+where p.id = m.product_id
+  and m.supplier_id is null
+  and p.supplier_id is not null;
+

@@ -15,7 +15,7 @@ interface Movement {
   created_by: string | null
   approval_status: ApprovalStatus
   review_note: string | null
-  product: { name: string; sku: string } | null
+  product: { name: string; sku: string; supplier?: { name: string } | null } | null
   supplier: { name: string } | null
   warehouse: { name: string; code: string } | null
 }
@@ -71,7 +71,14 @@ export default function MovementsPage() {
       className: "text-right",
     },
     { header: "Warehouse", cell: (r) => r.warehouse?.name ?? "—" },
-    { header: "Supplier", cell: (r) => r.supplier?.name ?? <span className="text-muted-foreground">—</span> },
+    {
+      header: "Supplier",
+      cell: (r) => (
+        <span className="text-foreground">
+          {r.supplier?.name ?? r.product?.supplier?.name ?? <span className="text-muted-foreground">—</span>}
+        </span>
+      ),
+    },
     { header: "Reference", cell: (r) => r.reference_no ?? <span className="text-muted-foreground">—</span> },
     { header: "Remarks", cell: (r) => r.remarks ?? <span className="text-muted-foreground">—</span> },
     { header: "Status", cell: (r) => <ApprovalBadge status={r.approval_status} note={r.review_note} /> },
@@ -102,11 +109,10 @@ export default function MovementsPage() {
     },
     {
       name: "supplier_id",
-      label: "Supplier (receiving source)",
+      label: "Supplier",
       type: "select",
       options: suppliers,
-      placeholder: "No supplier (internal / opening)",
-      visibleWhen: (v) => v.movement_type === "stock_in",
+      placeholder: "Defaults to product's primary supplier",
     },
     { name: "reference_no", label: "Reference no. (PO / DR / Receipt)", type: "text", placeholder: "e.g. RCPT-1001 or DR-0045" },
     { name: "remarks", label: "Remarks / reason", type: "textarea", placeholder: "e.g. Opening stock, supplier delivery, transfer" },
@@ -168,7 +174,7 @@ export default function MovementsPage() {
           <span className="font-semibold text-foreground">Stock movements</span> record every quantity change
           at a specific warehouse location.
           <span className="ml-1 text-foreground/80">
-            Stock-outs cannot exceed the available balance at the chosen warehouse. Sales automatically record approved dispatches here.
+            Stock-outs cannot exceed the available balance at the chosen warehouse. Movements automatically associate with the product's supplier.
           </span>
         </div>
       </div>
@@ -178,7 +184,7 @@ export default function MovementsPage() {
         table="inventory_movements"
         singular="Movement"
         approval
-        select="id, movement_type, quantity, movement_date, reference_no, remarks, created_by, approval_status, review_note, product:products(name, sku), supplier:suppliers(name), warehouse:warehouses(name, code)"
+        select="id, movement_type, quantity, movement_date, reference_no, remarks, created_by, approval_status, review_note, product:products(name, sku, supplier:suppliers(name)), supplier:suppliers(name), warehouse:warehouses(name, code)"
         searchColumns={["reference_no", "remarks"]}
         searchPlaceholder="Search by reference no. or remarks..."
         orderBy="movement_date"

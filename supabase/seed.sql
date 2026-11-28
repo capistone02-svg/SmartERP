@@ -254,12 +254,12 @@ from (values
   ('stock_in',   8, date '2026-10-03', 'MAIN', 'Global Traders',     'PRN-001', 'RCPT-0004', 'Opening stock - printers'),
   ('stock_in', 100, date '2026-10-04', 'RET1','Prime Wholesale Inc','PPR-001', 'RCPT-0005', 'Opening stock - paper'),
   ('stock_in',  20, date '2026-10-04', 'RET1','Global Traders',     'TNR-001', 'RCPT-0006', 'Opening stock - toner'),
-  ('stock_out',  5, date '2026-10-12', 'MAIN', null,                'CHR-001', 'DR-0001',    'Delivered to clients'),
-  ('stock_out',  2, date '2026-10-28', 'MAIN', null,                'DSK-001', 'DR-0002',    'Delivered to clients'),
-  ('stock_out', 12, date '2026-11-08', 'RET1', null,                'MSE-001', 'DR-0003',    'Walk-in sales'),
-  ('stock_out',  3, date '2026-11-14', 'RET1', null,                'TNR-001', 'DR-0004',    'Walk-in sales'),
-  ('stock_out', 25, date '2026-11-20', 'RET1', null,                'PPR-001', 'DR-0005',    'Bulk paper sales'),
-  ('stock_out',  6, date '2026-11-22', 'RET1', null,                'TNR-001', 'DR-0006',    'Walk-in sales')
+  ('stock_out',  5, date '2026-10-12', 'MAIN', 'Alpha Distribution', 'CHR-001', 'DR-0001',    'Delivered to clients'),
+  ('stock_out',  2, date '2026-10-28', 'MAIN', 'Prime Wholesale Inc','DSK-001', 'DR-0002',    'Delivered to clients'),
+  ('stock_out', 12, date '2026-11-08', 'MAIN', 'Alpha Distribution', 'MSE-001', 'DR-0003',    'Walk-in sales'),
+  ('stock_out',  3, date '2026-11-14', 'RET1', 'Global Traders',     'TNR-001', 'DR-0004',    'Walk-in sales'),
+  ('stock_out', 25, date '2026-11-20', 'RET1', 'Prime Wholesale Inc','PPR-001', 'DR-0005',    'Bulk paper sales'),
+  ('stock_out',  6, date '2026-11-22', 'RET1', 'Global Traders',     'TNR-001', 'DR-0006',    'Walk-in sales')
 ) as v(movement_type, qty, m_date, wh, supplier, sku, ref, remarks)
 join public.warehouses w on w.code = v.wh
 join public.products p on p.sku = v.sku
