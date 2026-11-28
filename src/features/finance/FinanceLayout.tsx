@@ -15,7 +15,11 @@ export default function FinanceLayout() {
   const sees = profile?.role === "department_head" || profile?.role === "admin"
   const pending = usePendingCount("financial_entries", sees)
   const TABS = sees
-    ? [...BASE_TABS, { label: pending > 0 ? `Approvals (${pending})` : "Approvals", to: "/finance/approvals" }]
+    ? [
+        ...BASE_TABS,
+        { label: pending > 0 ? `Approvals (${pending})` : "Approvals", to: "/finance/approvals" },
+        { label: "Team", to: "/finance/team" },
+      ]
     : BASE_TABS
   return (
     <>

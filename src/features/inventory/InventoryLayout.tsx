@@ -19,7 +19,11 @@ export default function InventoryLayout() {
   const sees = profile?.role === "department_head" || profile?.role === "admin"
   const pending = usePendingCount("inventory_movements", sees)
   const TABS = sees
-    ? [...BASE_TABS, { label: pending > 0 ? `Approvals (${pending})` : "Approvals", to: "/inventory/approvals" }]
+    ? [
+        ...BASE_TABS,
+        { label: pending > 0 ? `Approvals (${pending})` : "Approvals", to: "/inventory/approvals" },
+        { label: "Team", to: "/inventory/team" },
+      ]
     : BASE_TABS
   return (
     <>
