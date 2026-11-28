@@ -1,7 +1,10 @@
 import { useEffect, useState } from "react"
+import { ArrowRight } from "lucide-react"
+import { Link } from "react-router-dom"
 import type { Column } from "@/components/shared/DataTable"
 import { ResourcePage, type FieldDef } from "@/components/shared/ResourcePage"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 import { num } from "@/lib/format"
 import { supabase } from "@/lib/supabase"
 
@@ -28,7 +31,13 @@ export default function WarehousePage() {
       .select("warehouse_id, sku, name, quantity, unit")
       .then(({ data }) => {
         const map: Record<string, WarehouseStockSummary> = {}
-        for (const row of (data ?? []) as { warehouse_id: string; sku: string; name: string; quantity: number; unit: string }[]) {
+        for (const row of (data ?? []) as {
+          warehouse_id: string
+          sku: string
+          name: string
+          quantity: number
+          unit: string
+        }[]) {
           if (!map[row.warehouse_id]) {
             map[row.warehouse_id] = { product_count: 0, total_units: 0, top_products: [] }
           }
@@ -62,7 +71,7 @@ export default function WarehousePage() {
           return <span className="text-xs text-muted-foreground">0 products</span>
         }
         return (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2" title="Products stored here via approved Stock In movements">
             <Badge variant="secondary" className="font-normal">
               {s.product_count} product{s.product_count === 1 ? "" : "s"}
             </Badge>
@@ -85,7 +94,7 @@ export default function WarehousePage() {
             {s.top_products.map((p) => (
               <span
                 key={p.sku}
-                title={`${p.name}: ${num(p.quantity)} ${p.unit}`}
+                title={`${p.name}: ${num(p.quantity)} ${p.unit} (stored here via Stock Movements)`}
                 className="inline-flex items-center gap-1 rounded bg-muted/60 px-1.5 py-0.5 text-[11px] text-foreground"
               >
                 <span className="font-mono text-muted-foreground">{p.sku}:</span>
@@ -110,11 +119,23 @@ export default function WarehousePage() {
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-col gap-1 rounded-lg border border-border/80 bg-muted/30 px-4 py-2.5 text-xs text-muted-foreground">
-        <div>
-          <span className="font-semibold text-foreground">Physical storage locations</span> — warehouses, retail storerooms, or distribution centers.
-          Stock movements deposit into or deduct from these specific sites, ensuring balance integrity per warehouse.
+      {/* Informative banner explaining how products attach to warehouses */}
+      <div className="flex flex-col gap-2 rounded-lg border border-border/80 bg-muted/30 px-4 py-3 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between">
+        <div className="space-y-0.5">
+          <p>
+            <span className="font-semibold text-foreground">How products connect to warehouses:</span> Products are
+            never statically configured inside a warehouse. Instead, any product in your catalog is placed into a
+            warehouse by recording a <span className="font-medium text-foreground">Stock In movement</span> (or transferred between sites).
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            The &ldquo;Inventory held&rdquo; and &ldquo;Stock preview&rdquo; columns below automatically display live balances of all items currently stored at each site.
+          </p>
         </div>
+        <Button asChild variant="outline" size="sm" className="shrink-0 text-xs">
+          <Link to="/inventory/movements">
+            Record Stock In <ArrowRight className="ml-1 h-3 w-3" />
+          </Link>
+        </Button>
       </div>
 
       <ResourcePage<Warehouse>
