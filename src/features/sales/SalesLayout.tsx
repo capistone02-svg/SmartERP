@@ -19,11 +19,7 @@ export default function SalesLayout() {
   const sees = profile?.role === "department_head" || profile?.role === "admin"
   const pending = usePendingCount("sales_transactions", sees)
   const TABS = sees
-    ? [
-        ...BASE_TABS,
-        { label: pending > 0 ? `Approvals (${pending})` : "Approvals", to: "/sales/approvals" },
-        { label: "Team", to: "/sales/team" },
-      ]
+    ? [...BASE_TABS, { label: pending > 0 ? `Approvals (${pending})` : "Approvals", to: "/sales/approvals" }]
     : BASE_TABS
   return (
     <>

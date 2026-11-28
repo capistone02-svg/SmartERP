@@ -75,7 +75,6 @@ export default function App() {
                     <Route path="employees" element={<EmployeesPage />} />
                     <Route path="onboarding" element={<OnboardingPage />} />
                     <Route path="accounts" element={<AccountsPage />} />
-                    <Route path="team" element={<TeamPage area="human_resources" />} />
                   </Route>
                 </Route>
                 <Route element={<RequireAccess area="finance_accounting" />}>
@@ -83,7 +82,6 @@ export default function App() {
                     <Route path="approvals" element={<ApprovalsPage module="finance" />} />
                     <Route index element={<FinanceOverview />} />
                     <Route path="entries" element={<EntriesPage />} />
-                    <Route path="team" element={<TeamPage area="finance_accounting" />} />
                   </Route>
                 </Route>
                 <Route element={<RequireAccess area="inventory_warehouse" />}>
@@ -95,7 +93,6 @@ export default function App() {
                     <Route path="movements" element={<MovementsPage />} />
                     <Route path="suppliers" element={<SuppliersPage />} />
                     <Route path="warehouse" element={<WarehousePage />} />
-                    <Route path="team" element={<TeamPage area="inventory_warehouse" />} />
                   </Route>
                 </Route>
                 <Route element={<RequireAccess area="sales_marketing" />}>
@@ -107,7 +104,6 @@ export default function App() {
                     <Route path="customers" element={<CustomersPage />} />
                     <Route path="promotions" element={<PromotionsPage />} />
                     <Route path="marketing" element={<MarketingPage />} />
-                    <Route path="team" element={<TeamPage area="sales_marketing" />} />
                   </Route>
                 </Route>
                 <Route element={<RequireAccess area="customer_service" />}>
@@ -118,8 +114,6 @@ export default function App() {
         <Route path="inquiries" element={<CaseTypePage key="inquiry" kind="inquiry" />} />
         <Route path="feedback" element={<CaseTypePage key="feedback" kind="feedback" />} />
         <Route path="cases" element={<CasesPage />} />
-        {/* Team tab: Department Head + Admin of this department */}
-        <Route path="team" element={<TeamPage area="customer_service" />} />
       </Route>
                 </Route>
                 <Route element={<RequireAccess adminOnly />}>
