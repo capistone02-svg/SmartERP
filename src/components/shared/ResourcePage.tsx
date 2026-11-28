@@ -68,6 +68,7 @@ export interface ResourcePageProps<T> {
   // Called while the form dialog is open with a setField function, and with
   // null when it closes - lets the caller fill a field (e.g. after a quick-create).
   onFormReady?: (api: ResourceFormApi | null) => void
+  hideCreate?: boolean // hide the standard Add button (the page offers its own way to add)
 }
 
 export interface ResourceFormApi {
@@ -222,7 +223,7 @@ export function ResourcePage<T>(p: ResourcePageProps<T>) {
   })
 
   if (!profile) return null
-  const canCreate = !p.readOnly && fields.length > 0 && can(p.resource, "create")
+  const canCreate = !p.readOnly && !p.hideCreate && fields.length > 0 && can(p.resource, "create")
   const canUpdate = !p.readOnly && p.allowEdit !== false && fields.length > 0 && can(p.resource, "update")
   const canDelete = !p.readOnly && can(p.resource, "delete")
   const ownerOf = (row: T) => (row as { created_by?: string | null }).created_by

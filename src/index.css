@@ -10,6 +10,8 @@
     --brand-hover: #0b5189;
     --brand-soft: #dbeefc;
     --warning: #e08a1e;
+    --success: #16a34a;
+    --success-soft: #dcfce7;
   }
   body {
     font-family: "Georama", system-ui, sans-serif;
@@ -64,6 +66,9 @@
   --color-brand-text: var(--brand);
   --color-brand-soft: var(--brand-soft);
   --color-warning: var(--warning);
+  /* success colors: HrOverview / DetailsTab / HistoryTab use bg-success, text-success, bg-success-soft */
+  --color-success: var(--success);
+  --color-success-soft: var(--success-soft);
   --shadow-card: 0 1px 2px rgb(0 0 0 / 0.04), 0 8px 20px -10px rgb(0 0 0 / 0.12);
   --radius-sm: calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);

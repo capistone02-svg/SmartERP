@@ -6,6 +6,7 @@ import { useAuth } from "@/features/auth/AuthContext"
 const TABS = [
   { label: "Overview", to: "/hr", end: true },
   { label: "Employees", to: "/hr/employees" },
+  { label: "Onboarding", to: "/hr/onboarding" },
 ]
 
 export default function HrLayout() {
@@ -14,7 +15,7 @@ export default function HrLayout() {
   const tabs = can("user_accounts", "view") ? [...TABS, { label: "Accounts", to: "/hr/accounts" }] : TABS
   return (
     <>
-      <PageHeader title="Human Resource" description="Employee records, assignments, positions, employment status and accounts." />
+      <PageHeader title="Human Resource" description="Employee files, documents, onboarding, employment history and accounts." />
       <ModuleTabs tabs={tabs} />
       <Outlet />
     </>

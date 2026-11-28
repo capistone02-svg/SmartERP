@@ -141,6 +141,12 @@ export default function MyWork() {
         title="My work"
         description={`${profile.full_name}${area ? " - " + AREA_LABEL[area] : ""}`}
       />
+      {profile.employee_id && (
+        <p className="mb-5 text-sm">
+          <Link to={`/people/${profile.employee_id}`} className="text-brand-text underline">Open my employee file</Link>
+          <span className="text-muted-foreground"> - your details, documents and employment history</span>
+        </p>
+      )}
       {area === "customer_service" && <CaseWork employeeId={profile.employee_id} />}
       {area && area in SUBMISSIONS && <SubmissionWork area={area} userId={profile.id} />}
       {area === "human_resources" && (
