@@ -11,7 +11,10 @@ export async function callAccountFunction(body: Record<string, unknown>): Promis
       const res = (error as { context?: Response }).context
       if (res) {
         const j = await res.json()
+        // Function errors use { error }; platform errors (401/404) use { msg } / { message }.
         if (j?.error) return String(j.error)
+        if (j?.message) return String(j.message)
+        if (j?.msg) return String(j.msg)
       }
     } catch {
       /* fall through */
