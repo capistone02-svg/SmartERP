@@ -19,7 +19,8 @@ export async function callAccountFunction(body: Record<string, unknown>): Promis
     } catch {
       /* fall through */
     }
-    return "The request failed. Please check that the account function is deployed."
+    // No response at all (CORS/network). Include the raw error so it can be diagnosed.
+    return `The request failed (${error.message ?? "network error"}). Please check that the account function is deployed.`
   }
   return data?.error ? String(data.error) : null
 }
