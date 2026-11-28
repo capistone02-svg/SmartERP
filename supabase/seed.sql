@@ -133,6 +133,10 @@ select public.seed_user('26-47605', 'Maria Dela Cruz',   'admin123',  'admin',  
 select public.seed_user('26-47012', 'Ramon Santos',      'head123',   'department_head', 'finance_accounting');
 select public.seed_user('26-47110', 'Liza Torres',       'head123',   'department_head', 'customer_service');
 select public.seed_user('26-47200', 'Patricia Go',       'head123',   'department_head', 'human_resources');
+select public.seed_user('26-47300', 'Roberto Gomez',     'head123',   'department_head', 'inventory_warehouse');
+select public.seed_user('26-47400', 'Elena Morales',     'head123',   'department_head', 'sales_marketing');
+select public.seed_user('26-48010', 'Teresa Ramos',      'staff123',  'staff',           'finance_accounting');
+select public.seed_user('26-48610', 'Victor Diaz',       'staff123',  'staff',           'human_resources');
 select public.seed_user('26-48200', 'Alicia Reyes',      'staff123',  'staff',           'inventory_warehouse');
 select public.seed_user('26-48310', 'Marco Santos',      'staff123',  'staff',           'customer_service');
 select public.seed_user('26-48410', 'Daniel Cruz',       'staff123',  'staff',           'sales_marketing');
@@ -155,6 +159,14 @@ select * from (values
    'Department Head',              'customer_service',   'active', date '2021-07-01'),
   ('26-47200', 'Patricia', 'Go',       'patricia.go@erp.example.com',     '+63 917 555 0104', 'Batangas City, Batangas',
    'Department Head',              'human_resources',    'active', date '2022-01-10'),
+  ('26-47300', 'Roberto',  'Gomez',    'roberto.gomez@erp.example.com',    '+63 917 555 0110', 'Ibaan, Batangas',
+   'Department Head',              'inventory_warehouse','active', date '2022-05-10'),
+  ('26-47400', 'Elena',    'Morales',  'elena.morales@erp.example.com',    '+63 917 555 0111', 'Batangas City, Batangas',
+   'Department Head',              'sales_marketing',    'active', date '2022-08-15'),
+  ('26-48010', 'Teresa',   'Ramos',    'teresa.ramos@erp.example.com',     '+63 917 555 0112', 'Lipa City, Batangas',
+   'Staff',                        'finance_accounting', 'active', date '2024-03-01'),
+  ('26-48610', 'Victor',   'Diaz',     'victor.diaz@erp.example.com',      '+63 917 555 0113', 'San Jose, Batangas',
+   'Staff',                        'human_resources',    'active', date '2024-04-15'),
   ('26-48100', 'Ben',     'Villanueva','ben.villanueva@erp.example.com',  '+63 917 555 0105', 'Taysan, Batangas',
    'Staff',                        'inventory_warehouse','active', date '2023-05-22'),
   ('26-48200', 'Alicia',  'Reyes',     'alicia.reyes@erp.example.com',    '+63 917 555 0106', 'Rosario, Batangas',
