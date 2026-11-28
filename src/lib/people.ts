@@ -28,6 +28,15 @@ export const EMPLOYMENT_TYPES: Option[] = [
   { value: "contractual", label: "Contractual" },
   { value: "seasonal", label: "Seasonal" },
 ]
+
+// The standard positions - the only values the forms offer, everywhere.
+// Whether someone is a Department Head or Staff depends on their department;
+// Admin is the system administrator.
+export const POSITIONS: Option[] = [
+  { value: "Admin", label: "Admin" },
+  { value: "Department Head", label: "Department Head" },
+  { value: "Staff", label: "Staff" },
+]
 export const CIVIL_STATUSES: Option[] = [
   { value: "single", label: "Single" },
   { value: "married", label: "Married" },

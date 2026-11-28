@@ -148,23 +148,23 @@ insert into public.employees
    position, functional_area, employment_status, hire_date)
 select * from (values
   ('26-47605', 'Maria',   'Dela Cruz', 'maria.delacruz@erp.example.com',  '+63 917 555 0101', 'Ibaan, Batangas',
-   'HR and Systems Administrator', 'human_resources',    'active', date '2021-03-01'),
+   'Admin',                        'human_resources',    'active', date '2021-03-01'),
   ('26-47012', 'Ramon',   'Santos',    'ramon.santos@erp.example.com',    '+63 917 555 0102', 'Batangas City, Batangas',
-   'Accounting Manager',           'finance_accounting', 'active', date '2022-03-15'),
+   'Department Head',              'finance_accounting', 'active', date '2022-03-15'),
   ('26-47110', 'Liza',    'Torres',    'liza.torres@erp.example.com',     '+63 917 555 0103', 'Ibaan, Batangas',
-   'Customer Service Manager',     'customer_service',   'active', date '2021-07-01'),
+   'Department Head',              'customer_service',   'active', date '2021-07-01'),
   ('26-47200', 'Patricia', 'Go',       'patricia.go@erp.example.com',     '+63 917 555 0104', 'Batangas City, Batangas',
-   'HR Manager',                   'human_resources',    'active', date '2022-01-10'),
+   'Department Head',              'human_resources',    'active', date '2022-01-10'),
   ('26-48100', 'Ben',     'Villanueva','ben.villanueva@erp.example.com',  '+63 917 555 0105', 'Taysan, Batangas',
-   'Warehouse Supervisor',         'inventory_warehouse','active', date '2023-05-22'),
+   'Staff',                        'inventory_warehouse','active', date '2023-05-22'),
   ('26-48200', 'Alicia',  'Reyes',     'alicia.reyes@erp.example.com',    '+63 917 555 0106', 'Rosario, Batangas',
-   'Inventory Analyst',            'inventory_warehouse','active', date '2024-02-05'),
+   'Staff',                        'inventory_warehouse','active', date '2024-02-05'),
   ('26-48310', 'Marco',   'Santos',    'marco.santos@erp.example.com',    '+63 917 555 0107', 'Ibaan, Batangas',
-   'Customer Service Representative','customer_service', 'active', date '2024-06-12'),
+   'Staff',                        'customer_service',   'active', date '2024-06-12'),
   ('26-48410', 'Daniel',  'Cruz',      'daniel.cruz@erp.example.com',     '+63 917 555 0108', 'Batangas City, Batangas',
-   'Sales Executive',              'sales_marketing',    'active', date '2023-09-18'),
+   'Staff',                        'sales_marketing',    'active', date '2023-09-18'),
   ('26-48510', 'Grace',   'Lim',       'grace.lim@erp.example.com',       '+63 917 555 0109', 'Padre Garcia, Batangas',
-   'Sales Associate',              'sales_marketing',    'active', date '2025-01-07')
+   'Staff',                        'sales_marketing',    'active', date '2025-01-07')
 ) as v(employee_no, first_name, last_name, email, phone, address,
        position, functional_area, employment_status, hire_date)
 where not exists (select 1 from public.employees e where e.employee_no = v.employee_no);

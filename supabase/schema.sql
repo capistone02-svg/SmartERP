@@ -67,7 +67,8 @@ create table if not exists public.employees (
   email            text,
   phone            text,
   address          text,
-  position         text not null,
+  position         text not null
+                   check (position in ('Admin','Department Head','Staff')),
   functional_area  text not null
                    check (functional_area in ('human_resources','finance_accounting',
                                               'inventory_warehouse','sales_marketing',

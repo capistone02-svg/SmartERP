@@ -7,7 +7,7 @@ import { StatusPill } from "@/components/shared/StatusPill"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/features/auth/AuthContext"
 import { formatDate, todayStr } from "@/lib/format"
-import { AREA_OPTIONS, EMPLOYMENT_TYPES, STATUS_TONE } from "@/lib/people"
+import { AREA_OPTIONS, EMPLOYMENT_TYPES, POSITIONS, STATUS_TONE } from "@/lib/people"
 import { supabase } from "@/lib/supabase"
 import { AREA_LABEL } from "@/types"
 import AddEmployeeWizard from "./AddEmployeeWizard"
@@ -41,7 +41,7 @@ const isSeparated = (v: Record<string, string>) => v.employment_status === "resi
 // Fields used when HR changes an existing employee (adding uses the step-by-step form)
 const fields: FieldDef[] = [
   { name: "employee_no", label: "Employee ID", type: "text", required: true, readOnlyOnEdit: true },
-  { name: "position", label: "Position", type: "text", required: true },
+  { name: "position", label: "Position", type: "select", required: true, options: POSITIONS },
   { name: "first_name", label: "First name", type: "text", required: true },
   { name: "last_name", label: "Last name", type: "text", required: true },
   { name: "functional_area", label: "Department", type: "select", options: AREA_OPTIONS, required: true },

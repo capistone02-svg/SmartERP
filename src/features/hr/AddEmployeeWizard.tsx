@@ -5,7 +5,7 @@ import { FormField, inputClass } from "@/components/shared/FormParts"
 import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { todayStr } from "@/lib/format"
-import { AREA_OPTIONS, CIVIL_STATUSES, EMPLOYMENT_TYPES } from "@/lib/people"
+import { AREA_OPTIONS, CIVIL_STATUSES, EMPLOYMENT_TYPES, POSITIONS } from "@/lib/people"
 import { supabase } from "@/lib/supabase"
 import { cn } from "@/lib/utils"
 
@@ -31,7 +31,7 @@ function Select({ value, onChange, options, placeholder }: { value: string; onCh
 // and government numbers, then a review. Documents are collected right after.
 export default function AddEmployeeWizard({ open, onClose, onAdded }: { open: boolean; onClose: () => void; onAdded: () => void }) {
   const navigate = useNavigate()
-  const empty: V = { hire_date: todayStr(), employment_type: "regular" }
+  const empty: V = { hire_date: todayStr(), employment_type: "regular", position: "Staff" }
   const [step, setStep] = useState(0)
   const [v, setV] = useState<V>(empty)
   const [error, setError] = useState<string | null>(null)
@@ -44,7 +44,7 @@ export default function AddEmployeeWizard({ open, onClose, onAdded }: { open: bo
   )
 
   function reset() {
-    setStep(0); setV({ hire_date: todayStr(), employment_type: "regular" }); setError(null); setCreated(null)
+    setStep(0); setV({ hire_date: todayStr(), employment_type: "regular", position: "Staff" }); setError(null); setCreated(null)
   }
   function close() {
     if (created) onAdded()
@@ -128,7 +128,9 @@ export default function AddEmployeeWizard({ open, onClose, onAdded }: { open: bo
               {step === 1 && (
                 <div className="grid gap-4 sm:grid-cols-2">
                   <FormField label="Employee ID" required>{text("employee_no", { placeholder: "e.g. 26-12345" })}</FormField>
-                  <FormField label="Position" required>{text("position")}</FormField>
+                  <FormField label="Position" required>
+                    <Select value={v.position ?? ""} onChange={set("position")} options={POSITIONS} placeholder="Select position" />
+                  </FormField>
                   <FormField label="Department" required><Select value={v.functional_area ?? ""} onChange={set("functional_area")} options={AREA_OPTIONS} /></FormField>
                   <FormField label="Employment type" required><Select value={v.employment_type ?? ""} onChange={set("employment_type")} options={EMPLOYMENT_TYPES} /></FormField>
                   <FormField label="Hire date" required>{text("hire_date", { type: "date" })}</FormField>
