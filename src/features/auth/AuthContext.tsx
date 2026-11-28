@@ -13,7 +13,10 @@ import type { Action, Permission, Profile } from "@/types"
 
 // The login screen asks for an Employee ID; Supabase Auth needs an email.
 const LOGIN_DOMAIN = "erp.example.com"
-const employeeIdToEmail = (id: string) => `${id.trim().toLowerCase()}@${LOGIN_DOMAIN}`
+const employeeIdToEmail = (id: string) => {
+  const clean = id.trim().toLowerCase()
+  return clean.includes("@") ? clean : `${clean}@${LOGIN_DOMAIN}`
+}
 
 interface AuthState {
   loading: boolean
