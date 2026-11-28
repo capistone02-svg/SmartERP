@@ -33,7 +33,7 @@ const FIELDS: { key: Field; label: string }[] = [
   { key: "can_export", label: "Export" },
 ]
 // Only these records have a CSV import or a report download in the system.
-const CAN_IMPORT = new Set(["sales_transactions"])
+const CAN_IMPORT = new Set(["products", "sales_transactions"])
 const CAN_EXPORT = new Set(["employees", "financial_entries", "inventory_movements", "sales_transactions", "service_cases"])
 const SYSTEM = "system"
 const SENS_STYLE: Record<string, string> = {

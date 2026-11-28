@@ -97,6 +97,7 @@ create table if not exists public.financial_entries (
   amount                numeric(14,2) not null check (amount > 0),
   reference             text,
   sales_transaction_id  uuid references public.sales_transactions (id),
+  inventory_movement_id uuid, -- FK added after inventory_movements table creation
   created_by            uuid references public.profiles (id),
   approval_status       text check (approval_status in ('pending','approved','rejected')),
   review_note           text,
@@ -166,6 +167,14 @@ create table if not exists public.inventory_movements (
 
 create index if not exists idx_inventory_movements_sale on public.inventory_movements (sale_id);
 
+alter table public.financial_entries
+  drop constraint if exists financial_entries_inventory_movement_id_fkey;
+alter table public.financial_entries
+  add constraint financial_entries_inventory_movement_id_fkey
+  foreign key (inventory_movement_id) references public.inventory_movements (id);
+create index if not exists idx_financial_entries_movement
+  on public.financial_entries (inventory_movement_id);
+
 create or replace view public.v_product_stock as
 select
   p.id                  as product_id,
@@ -179,8 +188,12 @@ select
     when coalesce(m.qty, 0) <= 0 then 'out_of_stock'
     when coalesce(m.qty, 0) <= p.low_stock_threshold then 'low_stock'
     else 'in_stock'
-  end as stock_status
+  end as stock_status,
+  p.unit_price,
+  p.supplier_id,
+  s.name as supplier_name
 from public.products p
+left join public.suppliers s on s.id = p.supplier_id
 left join lateral (
   select sum(case when mov.movement_type = 'stock_in' then mov.quantity else -mov.quantity end) as qty
   from public.inventory_movements mov
@@ -189,6 +202,59 @@ left join lateral (
     and mov.deleted_at is null
 ) m on true
 where p.deleted_at is null;
+
+create or replace view public.v_warehouse_stock as
+select
+  w.id         as warehouse_id,
+  w.code       as warehouse_code,
+  w.name       as warehouse_name,
+  p.id         as product_id,
+  p.sku,
+  p.name,
+  p.unit,
+  t.quantity
+from (
+  select
+    m.warehouse_id,
+    m.product_id,
+    sum(case when m.movement_type = 'stock_in' then m.quantity else -m.quantity end)::integer as quantity
+  from public.inventory_movements m
+  where m.approval_status = 'approved'
+    and m.deleted_at is null
+  group by m.warehouse_id, m.product_id
+) t
+join public.warehouses w on w.id = t.warehouse_id and w.deleted_at is null
+join public.products   p on p.id = t.product_id   and p.deleted_at is null
+where t.quantity <> 0;
+
+-- Per-warehouse stock guard: dispatches cannot take a warehouse balance negative
+create or replace function public.fn_movements_stock_guard() returns trigger
+language plpgsql security definer set search_path = public as $$
+declare v_bal integer;
+begin
+  if NEW.approval_status = 'approved'
+     and NEW.movement_type = 'stock_out'
+     and NEW.deleted_at is null then
+    select coalesce(
+      sum(case when movement_type = 'stock_in' then quantity else -quantity end), 0)
+    into v_bal
+    from public.inventory_movements
+    where product_id = NEW.product_id
+      and warehouse_id = NEW.warehouse_id
+      and approval_status = 'approved'
+      and deleted_at is null
+      and id <> NEW.id;
+    if v_bal < NEW.quantity then
+      raise exception 'Insufficient stock for this product in that warehouse.';
+    end if;
+  end if;
+  return NEW;
+end;
+$$;
+
+create or replace trigger trg_movements_stock_guard
+  after insert or update on public.inventory_movements
+  for each row execute function public.fn_movements_stock_guard();
 
 -- ----------------------------------------------------------------------------
 -- Sales and marketing
@@ -432,6 +498,13 @@ create or replace function public.fn_case_refs() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare v_sale_amount numeric(14,2);
 begin
+  -- take the product from the linked sale when the case has none
+  if NEW.sales_transaction_id is not null and NEW.product_id is null then
+    select st.product_id into NEW.product_id
+    from public.sales_transactions st
+    where st.id = NEW.sales_transaction_id;
+  end if;
+
   if NEW.product_id is null then
     NEW.product_name := null;
   else
@@ -490,6 +563,23 @@ $$;
 
 create or replace trigger trg_service_cases_refs before insert or update on public.service_cases
   for each row execute function public.fn_case_refs();
+
+create or replace function public.fn_products_rename_cases() returns trigger
+language plpgsql security definer set search_path = public as $$
+begin
+  if NEW.name is distinct from OLD.name and NEW.deleted_at is null then
+    update public.service_cases
+    set product_name = NEW.name, updated_at = now()
+    where product_id = NEW.id
+      and product_name is distinct from NEW.name;
+  end if;
+  return NEW;
+end;
+$$;
+
+create or replace trigger trg_products_rename
+  after update on public.products
+  for each row execute function public.fn_products_rename_cases();
 
 -- Only the Customer Service Head decides refunds; completion needs approval first.
 create or replace function public.fn_service_cases_guard() returns trigger
@@ -676,58 +766,71 @@ create or replace trigger trg_service_cases_refund_sale after insert or update o
   for each row execute function public.fn_sync_sale_refund();
 
 -- Approved sales deduct stock through inventory_movements, never below zero.
+-- Splits across warehouses richest-first, so no warehouse balance goes negative.
 create or replace function public.fn_sales_stock() returns trigger
 language plpgsql security definer set search_path = public as $$
 declare
-  v_wh    uuid;
-  v_mv    uuid;
-  v_mv_pr uuid;
-  v_bal   integer;
+  v_wh        uuid;
+  v_bal       integer;
+  v_remaining integer;
+  v_take      integer;
 begin
   if NEW.approval_status = 'approved' and NEW.deleted_at is null then
-    select id into v_wh from public.warehouses
-    where deleted_at is null order by created_at, id limit 1;
-    if v_wh is null then
-      raise exception 'No warehouse is set up yet, so stock cannot be tracked.';
-    end if;
+    if TG_OP = 'INSERT'
+       or NEW.approval_status is distinct from OLD.approval_status
+       or NEW.quantity       is distinct from OLD.quantity
+       or NEW.product_id     is distinct from OLD.product_id
+       or NEW.transaction_date is distinct from OLD.transaction_date
+       or NEW.transaction_no   is distinct from OLD.transaction_no then
 
-    select id, product_id into v_mv, v_mv_pr from public.inventory_movements
-    where sale_id = NEW.id and movement_type = 'stock_out' and deleted_at is null
-    limit 1;
+      update public.inventory_movements set deleted_at = now()
+      where sale_id = NEW.id and deleted_at is null;
 
-    if v_mv is not null and v_mv_pr is distinct from NEW.product_id then
-      update public.inventory_movements set deleted_at = now() where id = v_mv;
-      v_mv := null;
-    end if;
+      select coalesce(
+        sum(case when movement_type = 'stock_in' then quantity else -quantity end), 0)
+      into v_bal
+      from public.inventory_movements
+      where product_id = NEW.product_id
+        and approval_status = 'approved'
+        and deleted_at is null;
 
-    if v_mv is null then
-      select coalesce(sum(case when movement_type = 'stock_in' then quantity else -quantity end), 0)
-      into v_bal from public.inventory_movements
-      where product_id = NEW.product_id and approval_status = 'approved' and deleted_at is null;
-      if v_bal - NEW.quantity < 0 then
+      if v_bal < NEW.quantity then
         raise exception 'Insufficient stock for this product.';
       end if;
-      insert into public.inventory_movements
-        (movement_type, quantity, movement_date, warehouse_id, product_id,
-         reference_no, remarks, approval_status, sale_id)
-      values ('stock_out', NEW.quantity, NEW.transaction_date, v_wh, NEW.product_id,
-              NEW.transaction_no, 'Stock deducted for sale ' || NEW.transaction_no,
-              'approved', NEW.id);
-    elsif NEW.quantity is distinct from OLD.quantity
-          or NEW.transaction_date is distinct from OLD.transaction_date then
-      select coalesce(sum(case when movement_type = 'stock_in' then quantity else -quantity end), 0)
-      into v_bal from public.inventory_movements
-      where product_id = NEW.product_id and approval_status = 'approved'
-        and deleted_at is null and id <> v_mv;
-      if v_bal - NEW.quantity < 0 then
+
+      v_remaining := NEW.quantity;
+      for v_wh, v_bal in
+        select w.id,
+               coalesce(sum(case when m.movement_type = 'stock_in'
+                                then m.quantity else -m.quantity end), 0)
+        from public.warehouses w
+        left join public.inventory_movements m
+          on m.warehouse_id = w.id
+         and m.product_id = NEW.product_id
+         and m.approval_status = 'approved'
+         and m.deleted_at is null
+        where w.deleted_at is null
+        group by w.id
+        order by 2 desc, w.created_at, w.id
+      loop
+        exit when v_remaining = 0;
+        if v_bal > 0 then
+          v_take := least(v_bal, v_remaining);
+          insert into public.inventory_movements
+            (movement_type, quantity, movement_date, warehouse_id, product_id,
+             reference_no, remarks, approval_status, sale_id)
+          values ('stock_out', v_take, NEW.transaction_date, v_wh, NEW.product_id,
+                  NEW.transaction_no, 'Stock deducted for sale ' || NEW.transaction_no,
+                  'approved', NEW.id);
+          v_remaining := v_remaining - v_take;
+        end if;
+      end loop;
+
+      if v_remaining > 0 then
         raise exception 'Insufficient stock for this product.';
       end if;
-      update public.inventory_movements
-        set quantity = NEW.quantity, movement_date = NEW.transaction_date, updated_at = now()
-        where id = v_mv;
     end if;
-  elsif TG_OP = 'UPDATE'
-        and (NEW.approval_status is distinct from 'approved' or NEW.deleted_at is not null) then
+  else
     update public.inventory_movements set deleted_at = now()
     where sale_id = NEW.id and deleted_at is null;
   end if;
@@ -1567,6 +1670,27 @@ language sql stable set search_path = public as $$
   where st.deleted_at is null
     and st.approval_status = 'approved'
   order by st.transaction_date desc, st.created_at desc
+  limit 200;
+$$;
+
+-- Finance entry picker: the most recent approved inventory movements.
+create or replace function public.lookup_movement_refs()
+returns table (
+  id             uuid,
+  reference_no   text,
+  movement_date  date,
+  movement_type  text,
+  quantity       integer,
+  product_label  text
+)
+language sql stable set search_path = public as $$
+  select m.id, m.reference_no, m.movement_date, m.movement_type, m.quantity,
+         p.sku || ' - ' || p.name as product_label
+  from public.inventory_movements m
+  join public.products p on p.id = m.product_id
+  where m.deleted_at is null
+    and m.approval_status = 'approved'
+  order by m.movement_date desc, m.created_at desc
   limit 200;
 $$;
 
