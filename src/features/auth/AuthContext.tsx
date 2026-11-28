@@ -93,7 +93,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       const { data: perms } = await supabase
         .from("permissions")
-        .select("resource, functional_area, can_view, can_create, can_update, can_delete")
+        .select("resource, functional_area, can_view, can_create, can_update, can_delete, can_import, can_export")
         .eq("role", p.role)
       if (!active) return
       setProfile(p as Profile)
@@ -138,7 +138,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           ? row.can_create
           : action === "update"
             ? row.can_update
-            : row.can_delete
+            : action === "delete"
+              ? row.can_delete
+              : action === "import"
+                ? row.can_import
+                : row.can_export
     },
     [permissions],
   )

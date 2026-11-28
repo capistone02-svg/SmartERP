@@ -39,6 +39,7 @@ import ReportsPage from "@/features/reports/ReportsPage"
 import SettingsPage from "@/features/settings/SettingsPage"
 import { installAuthAudit } from "@/lib/auditAuth"
 import ActivityLogPage from "@/features/administration/ActivityLogPage"
+import ArchivePage from "@/features/administration/ArchivePage"
 import LoginLogPage from "@/features/administration/LoginLogPage"
 import ApprovalsPage from "@/features/approvals/ApprovalsPage"
 import HomePage from "@/features/home/HomePage"
@@ -120,6 +121,7 @@ export default function App() {
                     <Route path="permissions" element={<PermissionsPage />} />
                     <Route path="activity" element={<ActivityLogPage />} />
                     <Route path="logins" element={<LoginLogPage />} />
+                    <Route path="archive" element={<ArchivePage />} />
                   </Route>
                 </Route>
               </Route>
