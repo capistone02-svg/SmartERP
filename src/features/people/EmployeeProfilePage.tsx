@@ -23,8 +23,10 @@ type TabKey = "work" | "details" | "documents" | "history"
 //   HR and the Admin     -> personnel file (details, documents, history)
 //   Department Head      -> work profile of their own staff (no personal details or documents)
 //   The employee         -> everything about themself
-export default function EmployeeProfilePage() {
-  const { id = "" } = useParams()
+// Pass employeeId to embed it (used by My Profile); otherwise it reads :id from the route.
+export default function EmployeeProfilePage({ employeeId, embedded }: { employeeId?: string; embedded?: boolean } = {}) {
+  const { id: routeId = "" } = useParams()
+  const id = employeeId ?? routeId
   const navigate = useNavigate()
   const [params, setParams] = useSearchParams()
   const [access, setAccess] = useState<Access | null>(null)
@@ -36,6 +38,12 @@ export default function EmployeeProfilePage() {
 
   if (!access) return <p className="text-sm text-muted-foreground">Loading...</p>
   if (!access.found || (!access.personnel && !access.work)) {
+    // Embedded in My Profile: no file linked is a quiet note, not an error page.
+    if (embedded) {
+      return access.found ? null : (
+        <p className="text-sm text-muted-foreground">No employee file is linked to your account yet.</p>
+      )
+    }
     return (
       <div className="rounded-3xl bg-card p-8 text-center shadow-card">
         <p className="font-medium">This profile is not available to you.</p>
@@ -57,9 +65,11 @@ export default function EmployeeProfilePage() {
 
   return (
     <>
-      <button onClick={() => navigate(-1)} className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
-        <ArrowLeft className="h-4 w-4" /> Back
-      </button>
+      {!embedded && (
+        <button onClick={() => navigate(-1)} className="mb-4 inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
+          <ArrowLeft className="h-4 w-4" /> Back
+        </button>
+      )}
 
       <div className="mb-5 flex flex-wrap items-center gap-4 rounded-3xl bg-card p-5 shadow-card">
         <div className="flex h-14 w-14 items-center justify-center rounded-full bg-brand-soft text-lg font-medium text-brand-text">

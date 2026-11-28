@@ -143,7 +143,7 @@ export default function MyWork() {
       />
       {profile.employee_id && (
         <p className="mb-5 text-sm">
-          <Link to={`/people/${profile.employee_id}`} className="text-brand-text underline">Open my employee file</Link>
+          <Link to="/profile" className="text-brand-text underline">Open my employee file</Link>
           <span className="text-muted-foreground"> - your details, documents and employment history</span>
         </p>
       )}
