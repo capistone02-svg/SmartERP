@@ -7,10 +7,10 @@ import { useAuth } from "@/features/auth/AuthContext"
 const BASE_TABS = [
   { label: "Overview", to: "/inventory", end: true },
   { label: "Products", to: "/inventory/products" },
-  { label: "Stock", to: "/inventory/stock" },
+  { label: "Stock Levels", to: "/inventory/stock" },
   { label: "Movements", to: "/inventory/movements" },
   { label: "Suppliers", to: "/inventory/suppliers" },
-  { label: "Warehouse", to: "/inventory/warehouse" },
+  { label: "Warehouses", to: "/inventory/warehouse" },
 ]
 
 export default function InventoryLayout() {
@@ -23,7 +23,10 @@ export default function InventoryLayout() {
     : BASE_TABS
   return (
     <>
-      <PageHeader title="Inventory and Warehouse" description="Products, stock levels, suppliers and stock movements." />
+      <PageHeader
+        title="Inventory and Warehouse"
+        description="Catalog products, track physical warehouses, record stock movements, and monitor live inventory levels."
+      />
       <ModuleTabs tabs={TABS} />
       <Outlet />
     </>
